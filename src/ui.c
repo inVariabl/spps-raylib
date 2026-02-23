@@ -1,0 +1,113 @@
+#include "ui.h"
+#include <stdio.h>
+
+void DrawInventory(Player *player, int screenWidth, int screenHeight) {
+    int invStartX = screenWidth - 220;
+    int invStartY = screenHeight - 350;
+
+    // Inventory Panel
+    DrawRectangle(invStartX, invStartY, 200, 330, Fade(BROWN, 0.9f));
+    DrawRectangleLines(invStartX, invStartY, 200, 330, GOLD);
+    DrawText("INVENTORY", invStartX + 50, invStartY + 10, 18, GOLD);
+
+    for (int i = 0; i < INVENTORY_SIZE; i++) {
+        int slotX = invStartX + 10 + (i % 4) * 46;
+        int slotY = invStartY + 40 + (i / 4) * 40;
+
+        DrawRectangle(slotX, slotY, 40, 35, BLACK); // Slot background
+
+        if (player->inventory[i].itemId != 0) {
+            Color itemCol = itemDatabase[player->inventory[i].itemId].color;
+            DrawRectangle(slotX + 5, slotY + 5, 30, 25, itemCol);
+        }
+    }
+
+    // Craft Button
+    Rectangle craftBtn = {(float)invStartX + 10, (float)invStartY + 290, 180, 30};
+    bool hovered = CheckCollisionPointRec(GetMousePosition(), craftBtn);
+    DrawRectangleRec(craftBtn, hovered ? GOLD : BLACK);
+    DrawRectangleLinesEx(craftBtn, 2, GOLD);
+    DrawText("CRAFT TENT", invStartX + 45, invStartY + 297, 15, hovered ? BLACK : GOLD);
+
+    if (hovered && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+        TryCraftTent(player);
+    }
+}
+
+void DrawSkills(Player *player) {
+    // Basic skills UI top-left
+    DrawRectangle(10, 100, 150, 80, Fade(DARKGRAY, 0.7f));
+    DrawText("SKILLS", 15, 105, 15, WHITE);
+    
+    char buf[64];
+    sprintf(buf, "Oratory: %d", player->skills[SKILL_ORATORY].level);
+    DrawText(buf, 15, 125, 12, GOLD);
+    sprintf(buf, "Tentmaking: %d", player->skills[SKILL_TENTMAKING].level);
+    DrawText(buf, 15, 140, 12, GOLD);
+    sprintf(buf, "Endurance: %d", player->skills[SKILL_ENDURANCE].level);
+    DrawText(buf, 15, 155, 12, GOLD);
+}
+
+#include "world.h"
+
+void DrawHUD(Player *player, World *world) {
+    // Health/Spirit bar
+    DrawRectangle(10, 10, 200, 25, BLACK);
+    float hpPct = (float)player->spirit / (float)player->maxSpirit;
+    DrawRectangle(12, 12, (int)(196 * hpPct), 21, RED);
+    DrawText("SPIRIT", 80, 15, 12, WHITE);
+
+    // Location Display
+    DrawRectangle(10, 40, 200, 50, Fade(DARKGRAY, 0.7f));
+    DrawText("COORDINATES", 15, 45, 12, GOLD);
+    char buf[64];
+    sprintf(buf, "X: %d, Z: %d", player->position.x, player->position.z);
+    DrawText(buf, 15, 60, 20, WHITE);
+
+    // --- NAVIGATION COMPASS ---
+    int compassW = 400;
+    int compassX = GetScreenWidth()/2 - compassW/2;
+    int compassY = 30;
+    DrawRectangle(compassX, compassY, compassW, 30, Fade(BLACK, 0.6f));
+    DrawRectangleLines(compassX, compassY, compassW, 30, GOLD);
+
+    // North/South/East/West markers
+    DrawText("W", compassX + 5, compassY + 8, 15, WHITE);
+    DrawText("E", compassX + compassW - 15, compassY + 8, 15, WHITE);
+
+    // Nearby Cities on compass
+    for (int i = 0; i < sizeof(worldMap)/sizeof(City); i++) {
+        // Calculate relative direction
+        float dx = (float)worldMap[i].coords.x - player->lerpPosition.x;
+        float dz = (float)worldMap[i].coords.z - player->lerpPosition.z;
+        float dist = sqrtf(dx*dx + dz*dz);
+        
+        if (dist < 1000.0f) {
+            // Map angle to X position on compass bar (-45 to 45 degrees visible)
+            // For a simple horizontal bar, we use the relative X/Z
+            float relativeX = dx / 1000.0f; // -1 to 1
+            int markerX = compassX + compassW/2 + (int)(relativeX * (compassW/2));
+            
+            if (markerX > compassX + 5 && markerX < compassX + compassW - 15) {
+                DrawRectangle(markerX - 2, compassY + 5, 4, 20, GOLD);
+                if (dist < 100.0f) DrawText(worldMap[i].name, markerX - 20, compassY - 20, 12, GOLD);
+            }
+        }
+    }
+
+    // QUEST LOG
+    int questStartX = GetScreenWidth() - 220;
+    int questStartY = GetScreenHeight() - 450;
+    DrawRectangle(questStartX, questStartY, 200, 90, Fade(BLUE, 0.4f));
+    DrawRectangleLines(questStartX, questStartY, 200, 90, SKYBLUE);
+    DrawText("QUEST LOG", questStartX + 10, questStartY + 10, 15, GOLD);
+    
+    if (player->activeQuestId != 0) {
+        int qId = player->activeQuestId;
+        DrawText(questDatabase[qId].title, questStartX + 10, questStartY + 35, 12, WHITE);
+        // Truncate description for log
+        DrawText(TextSubtext(questDatabase[qId].description, 0, 30), questStartX + 10, questStartY + 55, 10, GRAY);
+    } else {
+        DrawText("No active mission.", questStartX + 10, questStartY + 40, 12, GRAY);
+    }
+}

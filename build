@@ -1,0 +1,19 @@
+#!/bin/sh
+
+APP_NAME="rayscape"
+SOURCE_FILES="src/main.c src/player.c src/world.c src/ui.c src/combat.c"
+COMPILER="gcc"
+CFLAGS="-I./src -Wall -std=c99 -Wno-missing-braces"
+LDFLAGS="-lraylib -lGL -lm -lpthread -ldl -lrt -lX11"
+
+echo "⚔️  Forging the binary: $APP_NAME..."
+
+$COMPILER $SOURCE_FILES -o $APP_NAME $CFLAGS $LDFLAGS
+
+if [ $? -eq 0 ]; then
+    echo "✅ Success! Run './$APP_NAME' to start your adventure."
+		./$APP_NAME
+else
+    echo "❌ Smithing failed. Check the errors above."
+fi
+
