@@ -14,3 +14,7 @@
 - [x] in f1 mode, a and d are swapped. w and s are fine though. same thing with the arrow key equivalents.
 - [x] in f1 fps mode, a and d are swapped for player movement. (up and down are fine).
 - [x] in f1 fps mode, the left mouse direction moves the camera to the right, and vice versa. (up and down are fine)
+
+### Backlog (Lesser Importance)
+- [x] fix trees to look more like palm trees. maybe use some fractal generation? also fake wind blowing the leaves gently so there's some movement and realism
+- [x] ok the palm trees are looking good, but the leaf "blades" are way too thin? like they probably need to be 7-10 times the width they are now? also i'm not sure if the light green stripes look that good. a solid green would be much better.

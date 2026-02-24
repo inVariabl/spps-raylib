@@ -1,7 +1,71 @@
 #include "world.h"
+#include "rlgl.h"
 #include <math.h>
 #include <stddef.h>
 #include <string.h>
+
+static void DrawPalmTree(Vector3 pos) {
+    float time = (float)GetTime();
+    float windOffset = (pos.x * 1.1f + pos.z * 1.3f); // Unique offset for each tree
+    
+    // Trunk - slightly curved and segmented
+    float trunkHeight = 3.5f;
+    int trunkSegments = 5;
+    Vector3 currentPos = pos;
+    for (int i = 0; i < trunkSegments; i++) {
+        float segmentHeight = trunkHeight / trunkSegments;
+        float curve = sinf(windOffset + i * 0.5f) * 0.05f;
+        Vector3 nextPos = {
+            currentPos.x + curve, 
+            currentPos.y + segmentHeight, 
+            currentPos.z + curve
+        };
+        float r1 = 0.25f - i * 0.02f;
+        float r2 = 0.25f - (i + 1) * 0.02f;
+        DrawCylinderEx(currentPos, nextPos, r1, r2, 8, BROWN);
+        currentPos = nextPos;
+    }
+
+    // Fronds (Leaves)
+    int numFronds = 12;
+    for (int i = 0; i < numFronds; i++) {
+        float angle = i * (360.0f / numFronds);
+        float leafWind = sinf(time * 2.0f + windOffset + i) * 0.1f;
+        
+        rlPushMatrix();
+        rlTranslatef(currentPos.x, currentPos.y, currentPos.z);
+        rlRotatef(angle + leafWind * 10.0f, 0, 1, 0);
+        
+        // Draw a curved leaf using segments
+        Vector3 leafPos = {0, 0, 0};
+        float droop = 0.1f;
+        for (int j = 0; j < 6; j++) {
+            float segmentLen = 0.5f;
+            float windFactor = sinf(time * 3.0f + windOffset + i + j) * 0.02f;
+            
+            Vector3 nextLeafPos = {
+                0, 
+                leafPos.y - (droop + windFactor) * j, 
+                leafPos.z + segmentLen
+            };
+            
+            Color leafColor = DARKGREEN;
+            DrawLine3D(leafPos, nextLeafPos, leafColor);
+            
+            // Draw leaf "blades"
+            DrawTriangle3D(
+                (Vector3){leafPos.x - 1.6f / (j + 1), leafPos.y, leafPos.z},
+                (Vector3){nextLeafPos.x, nextLeafPos.y, nextLeafPos.z},
+                (Vector3){leafPos.x + 1.6f / (j + 1), leafPos.y, leafPos.z},
+                leafColor
+            );
+
+            leafPos = nextLeafPos;
+        }
+        
+        rlPopMatrix();
+    }
+}
 
 void InitWorld(World *world) {
     // Clear everything
@@ -64,8 +128,7 @@ void DrawWorld(World *world, Camera3D camera) {
 
         switch (world->state.decos[i].type) {
             case DECO_PALM_TREE:
-                DrawCylinder(pos, 0.15f, 0.15f, 2.5f, 6, BROWN);
-                DrawSphere((Vector3){pos.x, pos.y + 2.5f, pos.z}, 1.0f, DARKGREEN);
+                DrawPalmTree(pos);
                 break;
             case DECO_ROCK:
                 DrawCube(pos, 1.2f, 0.8f, 1.0f, DARKGRAY);
