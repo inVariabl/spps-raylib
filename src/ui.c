@@ -52,7 +52,14 @@ void DrawSkills(Player *player) {
 
 #include "world.h"
 
-void DrawHUD(Player *player, World *world) {
+void DrawHUD(Player *player, World *world, bool isFirstPerson) {
+    if (isFirstPerson) {
+        int centerX = GetScreenWidth() / 2;
+        int centerY = GetScreenHeight() / 2;
+        DrawLine(centerX - 10, centerY, centerX + 10, centerY, GREEN);
+        DrawLine(centerX, centerY - 10, centerX, centerY + 10, GREEN);
+    }
+
     // Health/Spirit bar
     DrawRectangle(10, 10, 200, 25, BLACK);
     float hpPct = (float)player->spirit / (float)player->maxSpirit;

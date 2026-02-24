@@ -3,9 +3,19 @@
 
 #include "common.h"
 
+#define MAX_PATH_SIZE 256
+
 typedef struct {
     Vector3Int position;
-    Vector3Int target;
+    Vector3Int target; // CURRENT step in path
+    Vector3Int finalTarget; // Ultimate destination
+    Vector3Int path[MAX_PATH_SIZE];
+    int pathSize;
+    int pathIndex;
+
+    float moveTimer;
+    float yaw;
+    float pitch;
     Vector3 lerpPosition;
     Slot inventory[INVENTORY_SIZE];
     Skill skills[SKILL_COUNT];
@@ -16,8 +26,6 @@ typedef struct {
 } Player;
 
 void InitPlayer(Player *player);
-void UpdatePlayer(Player *player);
-void DrawPlayer(Player *player, Camera3D camera);
 bool AddToInventory(Player *player, int itemId);
 bool TryCraftTent(Player *player);
 

@@ -163,3 +163,82 @@ Vector3Int GetGridClicked(Ray ray) {
     if (groundHit.hit) return (Vector3Int){(int)roundf(groundHit.point.x), 0, (int)roundf(groundHit.point.z)};
     return (Vector3Int){0, -1, 0};
 }
+
+#define BFS_QUEUE_SIZE 1024
+
+typedef struct {
+    Vector3Int pos;
+    int parentIdx;
+} BFSNode;
+
+void FindPath(World *world, Player *player, Vector3Int finalTarget) {
+    if (IsTileBlocked(world, finalTarget)) return;
+
+    // BFS setup
+    static BFSNode queue[BFS_QUEUE_SIZE];
+    int head = 0, tail = 0;
+
+    queue[tail++] = (BFSNode){player->position, -1};
+    
+    int foundIdx = -1;
+    while (head < tail && tail < BFS_QUEUE_SIZE - 9) {
+        BFSNode current = queue[head++];
+        
+        if (current.pos.x == finalTarget.x && current.pos.z == finalTarget.z) {
+            foundIdx = head - 1;
+            break;
+        }
+
+        // Limit search distance to avoid freezing
+        if (tail > 800) break;
+        
+        // 8 directions (including diagonals)
+        for (int dx = -1; dx <= 1; dx++) {
+            for (int dz = -1; dz <= 1; dz++) {
+                if (dx == 0 && dz == 0) continue;
+                
+                Vector3Int nextPos = {current.pos.x + dx, 0, current.pos.z + dz};
+                if (!IsTileBlocked(world, nextPos)) {
+                    // Check if already visited in queue
+                    bool visited = false;
+                    for (int i = 0; i < tail; i++) {
+                        if (queue[i].pos.x == nextPos.x && queue[i].pos.z == nextPos.z) {
+                            visited = true;
+                            break;
+                        }
+                    }
+                    if (!visited) {
+                        queue[tail++] = (BFSNode){nextPos, head - 1};
+                    }
+                }
+            }
+        }
+    }
+    
+    if (foundIdx != -1) {
+        // Trace back path
+        int pathIdx = 0;
+        int curr = foundIdx;
+        static Vector3Int tempPath[MAX_PATH_SIZE];
+        while (curr != -1 && pathIdx < MAX_PATH_SIZE) {
+            tempPath[pathIdx++] = queue[curr].pos;
+            curr = queue[curr].parentIdx;
+        }
+        
+        // Reverse and set in player
+        player->pathSize = 0;
+        // Skip current tile (tempPath[pathIdx-1])
+        for (int i = pathIdx - 2; i >= 0; i--) {
+            player->path[player->pathSize++] = tempPath[i];
+        }
+        player->pathIndex = 0;
+        player->finalTarget = finalTarget;
+        if (player->pathSize > 0) player->target = player->path[0];
+    } else {
+        // If no path found (too far or blocked), just set a straight line target for now
+        // This keeps it playable even if BFS fails for long distances.
+        player->pathSize = 0;
+        player->target = finalTarget;
+        player->finalTarget = finalTarget;
+    }
+}

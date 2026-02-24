@@ -47,13 +47,56 @@ int main() {
 
     CombatSession combat = {0};
 
+    bool isFirstPerson = false;
+
     SetTargetFPS(60);
 
     // --- Main Loop ---
     while (!WindowShouldClose()) {
-        // 2. Logic: Mouse Interaction
+        // Handle perspective switching
+        if (IsKeyPressed(KEY_F1)) {
+            isFirstPerson = true;
+            DisableCursor();
+        }
+        if (IsKeyPressed(KEY_F3)) {
+            isFirstPerson = false;
+            EnableCursor();
+        }
+
+        // --- CAMERA UPDATE ---
+        if (isFirstPerson) {
+            // Mouse rotation
+            Vector2 delta = GetMouseDelta();
+            player.yaw -= delta.x * 0.005f;
+            player.pitch += delta.y * -0.005f;
+            if (player.pitch > PI/2.5f) player.pitch = PI/2.5f;
+            if (player.pitch < -PI/2.5f) player.pitch = -PI/2.5f;
+
+            // Camera at player position, looking towards yaw/pitch
+            camera.position = (Vector3){player.lerpPosition.x, 1.6f, player.lerpPosition.z};
+            
+            Vector3 look = {
+                cosf(player.pitch) * sinf(player.yaw),
+                sinf(player.pitch),
+                cosf(player.pitch) * cosf(player.yaw)
+            };
+            camera.target = Vector3Add(camera.position, look);
+            camera.fovy = 60.0f;
+        } else {
+            // 3rd Person (Runescape Style)
+            camera.target = player.lerpPosition;
+            camera.position = (Vector3){player.lerpPosition.x + 8.0f, 8.0f, player.lerpPosition.z + 8.0f};
+            camera.fovy = 45.0f;
+        }
+
+        // 2. Logic: Interaction
         if (!combat.active && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
-            Ray ray = GetMouseRay(GetMousePosition(), camera);
+            Ray ray;
+            if (isFirstPerson) {
+                ray = GetMouseRay((Vector2){(float)GetScreenWidth()/2, (float)GetScreenHeight()/2}, camera);
+            } else {
+                ray = GetMouseRay(GetMousePosition(), camera);
+            }
             
             // Check NPC first
             int npcIdx = GetClickedNPC(&world, ray);
@@ -88,9 +131,11 @@ int main() {
                     }
                 } else {
                     // Otherwise move player to grid clicked
-                    Vector3Int gridClick = GetGridClicked(ray);
-                    if (gridClick.y != -1 && !IsTileBlocked(&world, gridClick)) {
-                        player.target = gridClick;
+                    if (!isFirstPerson) {
+                        Vector3Int gridClick = GetGridClicked(ray);
+                        if (gridClick.y != -1) {
+                            FindPath(&world, &player, gridClick);
+                        }
                     }
                 }
             }
@@ -99,14 +144,9 @@ int main() {
         if (combat.active) {
             UpdateCombat(&combat, &player);
         } else {
-            UpdatePlayer(&player);
+            UpdatePlayer(&player, &world, isFirstPerson);
             UpdateWorld(&world, &player);
         }
-
-        // --- FIXED FOLLOW CAMERA ---
-        // Offset is (8, 8, 8) relative to player position
-        camera.target = player.lerpPosition;
-        camera.position = (Vector3){player.lerpPosition.x + 8.0f, 8.0f, player.lerpPosition.z + 8.0f};
 
         // 3. Rendering
         BeginDrawing();
@@ -114,7 +154,7 @@ int main() {
 
         BeginMode3D(camera);
         DrawWorld(&world, camera);
-        DrawPlayer(&player, camera);
+        if (!isFirstPerson) DrawPlayer(&player, camera);
 
         // Destination Marker
         if (!combat.active && Vector3Distance(player.lerpPosition, (Vector3){(float)player.target.x, (float)player.target.y, (float)player.target.z}) > 0.1f) {
@@ -125,7 +165,7 @@ int main() {
         // UI Layer
         DrawInventory(&player);
         DrawSkills(&player);
-        DrawHUD(&player, &world);
+        DrawHUD(&player, &world, isFirstPerson);
 
         if (combat.active) DrawCombatUI(&combat, GetScreenWidth(), GetScreenHeight());
 

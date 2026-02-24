@@ -24,15 +24,83 @@ void InitPlayer(Player *player) {
     }
 }
 
-void UpdatePlayer(Player *player) {
-    // Smooth visual movement (Lerp)
-    player->lerpPosition.x = Lerp(player->lerpPosition.x, (float)player->target.x, 0.15f);
-    player->lerpPosition.y = 0; // Keeping player on flat ground for now
-    player->lerpPosition.z = Lerp(player->lerpPosition.z, (float)player->target.z, 0.15f);
+#include "world.h"
 
-    // Update logical position when close to target
-    if (Vector3Distance(player->lerpPosition, (Vector3){(float)player->target.x, (float)player->target.y, (float)player->target.z}) < 0.05f) {
+void UpdatePlayer(Player *player, World *world, bool isFirstPerson) {
+    // Handle Keyboard Movement (WASD)
+    Vector3Int move = {0, 0, 0};
+    
+    player->moveTimer -= GetFrameTime();
+
+    if (player->moveTimer <= 0) {
+        if (isFirstPerson) {
+            // F1: Movement relative to yaw
+            // W is "Forward" (where we are looking)
+            float forwardX = sinf(player->yaw);
+            float forwardZ = cosf(player->yaw);
+            float rightX = sinf(player->yaw - PI/2.0f);
+            float rightZ = cosf(player->yaw - PI/2.0f);
+
+            if (IsKeyDown(KEY_W) || IsKeyDown(KEY_UP)) { 
+                move.x = (int)roundf(forwardX); 
+                move.z = (int)roundf(forwardZ); 
+            }
+            else if (IsKeyDown(KEY_S) || IsKeyDown(KEY_DOWN)) { 
+                move.x = -(int)roundf(forwardX); 
+                move.z = -(int)roundf(forwardZ); 
+            }
+            if (IsKeyDown(KEY_A) || IsKeyDown(KEY_LEFT)) { 
+                move.x -= (int)roundf(rightX); 
+                move.z -= (int)roundf(rightZ); 
+            }
+            else if (IsKeyDown(KEY_D) || IsKeyDown(KEY_RIGHT)) { 
+                move.x += (int)roundf(rightX); 
+                move.z += (int)roundf(rightZ); 
+            }
+            
+            // Normalize move to single tile step
+            if (move.x > 1) move.x = 1; 
+            if (move.x < -1) move.x = -1;
+            if (move.z > 1) move.z = 1; 
+            if (move.z < -1) move.z = -1;
+        } else {
+            // F3 diagonal mapping requested:
+            if (IsKeyDown(KEY_W) || IsKeyDown(KEY_UP)) { move.x = -1; move.z = -1; }
+            else if (IsKeyDown(KEY_S) || IsKeyDown(KEY_DOWN)) { move.x = 1; move.z = 1; }
+            else if (IsKeyDown(KEY_A) || IsKeyDown(KEY_LEFT)) { move.x = -1; move.z = 1; }
+            else if (IsKeyDown(KEY_D) || IsKeyDown(KEY_RIGHT)) { move.x = 1; move.z = -1; }
+        }
+
+        if (move.x != 0 || move.z != 0) {
+            Vector3Int nextPos = {player->position.x + move.x, 0, player->position.z + move.z};
+            if (!IsTileBlocked(world, nextPos)) {
+                player->pathSize = 0;
+                player->pathIndex = 0;
+                player->target = nextPos;
+                player->finalTarget = nextPos;
+                player->moveTimer = 0.15f; // Faster cooldown for smoother feel
+            }
+        }
+    }
+
+    // Determine the current step's target position
+    Vector3 targetPos = {(float)player->target.x, 0, (float)player->target.z};
+    
+    // Smooth visual movement (Lerp) towards current target tile
+    // Faster lerp for "smoother" FPS feel
+    float lerpSpeed = isFirstPerson ? 0.3f : 0.15f;
+    player->lerpPosition.x = Lerp(player->lerpPosition.x, targetPos.x, lerpSpeed);
+    player->lerpPosition.y = 0; 
+    player->lerpPosition.z = Lerp(player->lerpPosition.z, targetPos.z, lerpSpeed);
+
+    // If close to current target tile, move to next step in path
+    if (Vector3Distance(player->lerpPosition, targetPos) < 0.1f) {
         player->position = player->target;
+        
+        if (player->pathIndex < player->pathSize - 1) {
+            player->pathIndex++;
+            player->target = player->path[player->pathIndex];
+        }
     }
 }
 

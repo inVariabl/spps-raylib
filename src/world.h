@@ -50,5 +50,9 @@ int GetClickedItem(World *world, Ray ray);
 int GetClickedNPC(World *world, Ray ray);
 bool IsTileBlocked(World *world, Vector3Int pos);
 Vector3Int GetGridClicked(Ray ray);
+void FindPath(World *world, Player *player, Vector3Int target);
+
+void UpdatePlayer(Player *player, World *world, bool isFirstPerson);
+void DrawPlayer(Player *player, Camera3D camera);
 
 #endif // WORLD_H

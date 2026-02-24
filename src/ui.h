@@ -7,6 +7,6 @@
 
 void DrawInventory(Player *player);
 void DrawSkills(Player *player);
-void DrawHUD(Player *player, World *world);
+void DrawHUD(Player *player, World *world, bool isFirstPerson);
 
 #endif // UI_H
