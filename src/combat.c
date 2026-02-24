@@ -2,6 +2,7 @@
 #include "scripture.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 void StartCombat(CombatSession *session, const char *opponent) {
     session->active = true;
@@ -89,7 +90,16 @@ void DrawCombatUI(CombatSession *session, int screenWidth, int screenHeight) {
     DrawRectangle(screenWidth / 2 - 300, 50, 600, 150, DARKGRAY);
     DrawRectangleLines(screenWidth / 2 - 300, 50, 600, 150, MAROON);
     DrawText(session->opponentName, screenWidth / 2 - 280, 60, 20, GOLD);
-    DrawText(session->lastQuote, screenWidth / 2 - 280, 90, 16, WHITE);
+
+    const char *quoteText = session->lastQuote;
+    char qTruncated[95];
+    if (TextLength(quoteText) > 90) {
+        TextCopy(qTruncated, TextSubtext(quoteText, 0, 87));
+        strcat(qTruncated, "...");
+    } else {
+        TextCopy(qTruncated, quoteText);
+    }
+    DrawText(qTruncated, screenWidth / 2 - 280, 90, 16, WHITE);
 
     // Opponent Spirit Bar
     DrawRectangle(screenWidth / 2 - 280, 130, 560, 20, BLACK);
@@ -109,7 +119,16 @@ void DrawCombatUI(CombatSession *session, int screenWidth, int screenHeight) {
 
     for (int i = 0; i < 4; i++) {
         char buf[512];
-        sprintf(buf, "%d. %s", i + 1, session->options[i]);
+        const char *origText = session->options[i];
+        char truncated[95];
+        if (TextLength(origText) > 90) {
+            TextCopy(truncated, TextSubtext(origText, 0, 87));
+            strcat(truncated, "...");
+        } else {
+            TextCopy(truncated, origText);
+        }
+
+        sprintf(buf, "%d. %s", i + 1, truncated);
         Color col = GOLD;
         DrawText(buf, screenWidth / 2 - 380, boxY + 20 + (i * 40), 16, col);
     }

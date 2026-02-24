@@ -1,0 +1,5 @@
+- [x] put inventory under quest list. right now it's fixed and so when i fullscreen, it stays fixed, but should be relative underneath the quest list
+- [x] same thing with the message and the fps counter underneath that. that should be at the bottom left corner of the screen
+- [x] for the dialog tree, the text is running outside the box. make shorter dialogs. for example, "But they cried out with a loud voice and stopped their ears and rush together upon him." is the perfect length, maybe plus 3-5 characters.
+- [ ] i should not be able to fly through temples and synagogues and rocks. the character should walk around the building. obstacle detection please
+- [ ] press F1 to switch to a first person pov, and F3 to go back to the 3rd person runescape view
