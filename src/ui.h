@@ -5,7 +5,7 @@
 
 #include "world.h"
 
-void DrawInventory(Player *player, int screenWidth, int screenHeight);
+void DrawInventory(Player *player);
 void DrawSkills(Player *player);
 void DrawHUD(Player *player, World *world);
 

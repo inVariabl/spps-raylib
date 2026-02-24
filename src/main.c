@@ -123,14 +123,14 @@ int main() {
         EndMode3D();
 
         // UI Layer
-        DrawInventory(&player, screenWidth, screenHeight);
+        DrawInventory(&player);
         DrawSkills(&player);
         DrawHUD(&player, &world);
 
-        if (combat.active) DrawCombatUI(&combat, screenWidth, screenHeight);
+        if (combat.active) DrawCombatUI(&combat, GetScreenWidth(), GetScreenHeight());
 
-        DrawFPS(10, screenHeight - 25);
-        DrawText("Point & Click to move across the Mediterranean", 10, screenHeight - 45, 15, WHITE);
+        DrawText("Point & Click to move across the Mediterranean", 10, GetScreenHeight() - 45, 15, WHITE);
+        DrawFPS(10, GetScreenHeight() - 25);
 
         EndDrawing();
     }

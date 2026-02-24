@@ -1,9 +1,11 @@
 #include "ui.h"
 #include <stdio.h>
 
-void DrawInventory(Player *player, int screenWidth, int screenHeight) {
-    int invStartX = screenWidth - 220;
-    int invStartY = screenHeight - 350;
+void DrawInventory(Player *player) {
+    int questStartY = GetScreenHeight() - 450;
+    int questHeight = 90;
+    int invStartX = GetScreenWidth() - 220;
+    int invStartY = questStartY + questHeight + 10;
 
     // Inventory Panel
     DrawRectangle(invStartX, invStartY, 200, 330, Fade(BROWN, 0.9f));
