@@ -52,14 +52,6 @@ static void DrawPalmTree(Vector3 pos) {
             Color leafColor = DARKGREEN;
             DrawLine3D(leafPos, nextLeafPos, leafColor);
             
-            // // Draw leaf "blades"
-            // DrawTriangle3D(
-            //     (Vector3){leafPos.x - 1.5f / (j + 1), leafPos.y, leafPos.z},
-            //     (Vector3){nextLeafPos.x, nextLeafPos.y, nextLeafPos.z},
-            //     (Vector3){leafPos.x + 1.5f / (j + 1), leafPos.y, leafPos.z},
-            //     leafColor
-            // );
-
 						// Define the vertices once
 						Vector3 vLeft  = {leafPos.x - 1.5f / (j + 1), leafPos.y, leafPos.z};
 						Vector3 vTip   = {nextLeafPos.x, nextLeafPos.y, nextLeafPos.z};

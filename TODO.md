@@ -18,3 +18,4 @@
 ### Backlog (Lesser Importance)
 - [x] fix trees to look more like palm trees. maybe use some fractal generation? also fake wind blowing the leaves gently so there's some movement and realism
 - [x] ok the palm trees are looking good, but the leaf "blades" are way too thin? like they probably need to be 7-10 times the width they are now? also i'm not sure if the light green stripes look that good. a solid green would be much better.
+- [x] palm fronds not rendering on underside for fps mode
