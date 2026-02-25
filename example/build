@@ -1,3 +1,0 @@
-#!/bin/sh
-gcc fps.c -o fps -lraylib -lGL -lm -lpthread -ldl -lrt -lX11
-./fps
