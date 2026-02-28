@@ -230,33 +230,61 @@ Vector3Int GetGridClicked(Ray ray) {
     return (Vector3Int){0, -1, 0};
 }
 
-#define BFS_QUEUE_SIZE 1024
+#define A_STAR_NODES 1024
 
 typedef struct {
     Vector3Int pos;
     int parentIdx;
-} BFSNode;
+    float gCost;
+    float hCost;
+    bool closed;
+} AStarNode;
+
+static float GetHeuristic(Vector3Int a, Vector3Int b) {
+    // Euclidean distance for 8-way movement
+    float dx = (float)(a.x - b.x);
+    float dz = (float)(a.z - b.z);
+    return sqrtf(dx*dx + dz*dz);
+}
 
 void FindPath(World *world, Player *player, Vector3Int finalTarget) {
     if (IsTileBlocked(world, finalTarget)) return;
 
-    // BFS setup
-    static BFSNode queue[BFS_QUEUE_SIZE];
-    int head = 0, tail = 0;
+    static AStarNode nodes[A_STAR_NODES];
+    int nodeCount = 0;
 
-    queue[tail++] = (BFSNode){player->position, -1};
-    
+    // Start node
+    nodes[nodeCount++] = (AStarNode){
+        player->position, -1, 0, GetHeuristic(player->position, finalTarget), false
+    };
+
     int foundIdx = -1;
-    while (head < tail && tail < BFS_QUEUE_SIZE - 9) {
-        BFSNode current = queue[head++];
+    while (nodeCount < A_STAR_NODES - 9) {
+        // Find best open node
+        int currentIdx = -1;
+        float minFCost = 999999.0f;
+        for (int i = 0; i < nodeCount; i++) {
+            if (!nodes[i].closed) {
+                float fCost = nodes[i].gCost + nodes[i].hCost;
+                if (fCost < minFCost) {
+                    minFCost = fCost;
+                    currentIdx = i;
+                }
+            }
+        }
+
+        if (currentIdx == -1) break; // No path found
         
+        AStarNode current = nodes[currentIdx];
+        nodes[currentIdx].closed = true;
+
         if (current.pos.x == finalTarget.x && current.pos.z == finalTarget.z) {
-            foundIdx = head - 1;
+            foundIdx = currentIdx;
             break;
         }
 
-        // Limit search distance to avoid freezing
-        if (tail > 800) break;
+        // Limit search distance
+        if (nodeCount > 800) break;
         
         // 8 directions (including diagonals)
         for (int dx = -1; dx <= 1; dx++) {
@@ -265,16 +293,27 @@ void FindPath(World *world, Player *player, Vector3Int finalTarget) {
                 
                 Vector3Int nextPos = {current.pos.x + dx, 0, current.pos.z + dz};
                 if (!IsTileBlocked(world, nextPos)) {
-                    // Check if already visited in queue
-                    bool visited = false;
-                    for (int i = 0; i < tail; i++) {
-                        if (queue[i].pos.x == nextPos.x && queue[i].pos.z == nextPos.z) {
-                            visited = true;
+                    // Cost is 1.0 for orthogonal, ~1.414 for diagonal
+                    float moveCost = (dx != 0 && dz != 0) ? 1.414f : 1.0f;
+                    float newGCost = current.gCost + moveCost;
+                    
+                    // Check if already in nodes
+                    int existingIdx = -1;
+                    for (int i = 0; i < nodeCount; i++) {
+                        if (nodes[i].pos.x == nextPos.x && nodes[i].pos.z == nextPos.z) {
+                            existingIdx = i;
                             break;
                         }
                     }
-                    if (!visited) {
-                        queue[tail++] = (BFSNode){nextPos, head - 1};
+
+                    if (existingIdx == -1) {
+                        nodes[nodeCount++] = (AStarNode){
+                            nextPos, currentIdx, newGCost, GetHeuristic(nextPos, finalTarget), false
+                        };
+                    } else if (newGCost < nodes[existingIdx].gCost) {
+                        nodes[existingIdx].gCost = newGCost;
+                        nodes[existingIdx].parentIdx = currentIdx;
+                        nodes[existingIdx].closed = false; // Re-open if we found a better path
                     }
                 }
             }
@@ -287,13 +326,13 @@ void FindPath(World *world, Player *player, Vector3Int finalTarget) {
         int curr = foundIdx;
         static Vector3Int tempPath[MAX_PATH_SIZE];
         while (curr != -1 && pathIdx < MAX_PATH_SIZE) {
-            tempPath[pathIdx++] = queue[curr].pos;
-            curr = queue[curr].parentIdx;
+            tempPath[pathIdx++] = nodes[curr].pos;
+            curr = nodes[curr].parentIdx;
         }
         
         // Reverse and set in player
         player->pathSize = 0;
-        // Skip current tile (tempPath[pathIdx-1])
+        // Skip current tile (tempPath[pathIdx-1] is the player's current position)
         for (int i = pathIdx - 2; i >= 0; i--) {
             player->path[player->pathSize++] = tempPath[i];
         }
@@ -301,8 +340,7 @@ void FindPath(World *world, Player *player, Vector3Int finalTarget) {
         player->finalTarget = finalTarget;
         if (player->pathSize > 0) player->target = player->path[0];
     } else {
-        // If no path found (too far or blocked), just set a straight line target for now
-        // This keeps it playable even if BFS fails for long distances.
+        // If no path found, just set a straight line target for now
         player->pathSize = 0;
         player->target = finalTarget;
         player->finalTarget = finalTarget;

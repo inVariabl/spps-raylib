@@ -2,6 +2,8 @@
 #include <stdio.h>
 
 void DrawInventory(Player *player) {
+    if (!player->showInventory) return;
+
     int questStartY = GetScreenHeight() - 450;
     int questHeight = 90;
     int invStartX = GetScreenWidth() - 220;
@@ -74,33 +76,58 @@ void DrawHUD(Player *player, World *world, bool isFirstPerson) {
     DrawText(buf, 15, 60, 20, WHITE);
 
     // --- NAVIGATION COMPASS ---
-    int compassW = 400;
-    int compassX = GetScreenWidth()/2 - compassW/2;
-    int compassY = 30;
-    DrawRectangle(compassX, compassY, compassW, 30, Fade(BLACK, 0.6f));
-    DrawRectangleLines(compassX, compassY, compassW, 30, GOLD);
+    if (player->showMap) {
+        int compassW = 400;
+        int compassX = GetScreenWidth()/2 - compassW/2;
+        int compassY = 30;
+        DrawRectangle(compassX, compassY, compassW, 30, Fade(BLACK, 0.6f));
+        DrawRectangleLines(compassX, compassY, compassW, 30, GOLD);
 
-    // North/South/East/West markers
-    DrawText("W", compassX + 5, compassY + 8, 15, WHITE);
-    DrawText("E", compassX + compassW - 15, compassY + 8, 15, WHITE);
+        // North/South/East/West markers
+        DrawText("W", compassX + 5, compassY + 8, 15, WHITE);
+        DrawText("E", compassX + compassW - 15, compassY + 8, 15, WHITE);
 
-    // Nearby Cities on compass
-    for (int i = 0; i < sizeof(worldMap)/sizeof(City); i++) {
-        // Calculate relative direction
-        float dx = (float)worldMap[i].coords.x - player->lerpPosition.x;
-        float dz = (float)worldMap[i].coords.z - player->lerpPosition.z;
-        float dist = sqrtf(dx*dx + dz*dz);
-        
-        if (dist < 1000.0f) {
-            // Map angle to X position on compass bar (-45 to 45 degrees visible)
-            // For a simple horizontal bar, we use the relative X/Z
-            float relativeX = dx / 1000.0f; // -1 to 1
-            int markerX = compassX + compassW/2 + (int)(relativeX * (compassW/2));
+        // Nearby Cities on compass
+        for (int i = 0; i < sizeof(worldMap)/sizeof(City); i++) {
+            // Calculate relative direction
+            float dx = (float)worldMap[i].coords.x - player->lerpPosition.x;
+            float dz = (float)worldMap[i].coords.z - player->lerpPosition.z;
+            float dist = sqrtf(dx*dx + dz*dz);
             
-            if (markerX > compassX + 5 && markerX < compassX + compassW - 15) {
-                DrawRectangle(markerX - 2, compassY + 5, 4, 20, GOLD);
-                if (dist < 100.0f) DrawText(worldMap[i].name, markerX - 20, compassY - 20, 12, GOLD);
+            if (dist < 1000.0f) {
+                // Map angle to X position on compass bar (-45 to 45 degrees visible)
+                // For a simple horizontal bar, we use the relative X/Z
+                float relativeX = dx / 1000.0f; // -1 to 1
+                int markerX = compassX + compassW/2 + (int)(relativeX * (compassW/2));
+                
+                if (markerX > compassX + 5 && markerX < compassX + compassW - 15) {
+                    DrawRectangle(markerX - 2, compassY + 5, 4, 20, GOLD);
+                    if (dist < 100.0f) DrawText(worldMap[i].name, markerX - 20, compassY - 20, 12, GOLD);
+                }
             }
+        }
+
+        // Overview Map (Top-Right)
+        int mapW = 150;
+        int mapH = 150;
+        int mapX = GetScreenWidth() - mapW - 10;
+        int mapY = 10;
+        DrawRectangle(mapX, mapY, mapW, mapH, Fade(BLACK, 0.8f));
+        DrawRectangleLines(mapX, mapY, mapW, mapH, GOLD);
+
+        // Draw cities on map
+        for (int i = 0; i < sizeof(worldMap)/sizeof(City); i++) {
+            int cityX = mapX + mapW/2 + worldMap[i].coords.x / 10;
+            int cityZ = mapY + mapH/2 + worldMap[i].coords.z / 10;
+            if (cityX > mapX && cityX < mapX + mapW && cityZ > mapY && cityZ < mapY + mapH) {
+                DrawCircle(cityX, cityZ, 2, RED);
+            }
+        }
+        // Draw player
+        int px = mapX + mapW/2 + (int)player->lerpPosition.x / 10;
+        int pz = mapY + mapH/2 + (int)player->lerpPosition.z / 10;
+        if (px > mapX && px < mapX + mapW && pz > mapY && pz < mapY + mapH) {
+            DrawCircle(px, pz, 3, GREEN);
         }
     }
 

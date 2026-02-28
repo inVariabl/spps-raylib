@@ -15,6 +15,19 @@
 - [x] in f1 fps mode, a and d are swapped for player movement. (up and down are fine).
 - [x] in f1 fps mode, the left mouse direction moves the camera to the right, and vice versa. (up and down are fine)
 
+## Movement
+- [x] the a* algo works great it to navigate around buildings, but cannot travel diagonally? please fix
+- [x] also holding left shift down to move 10x as fast please.
+
+## Map
+- [ ] the map i think is way to big
+- [ ] also it's really bare rn. 2x as many trees, 1.5x more rocks, and more desert land features.
+
+## Crafting
+- [x] craft tent button doesn't work it, maybe bind it to 'c' or something to.
+- [x] bind 'i' to pull up an inventory.
+- [x] bind 'm' to pull up a map
+
 ### Backlog (Lesser Importance)
 - [x] fix trees to look more like palm trees. maybe use some fractal generation? also fake wind blowing the leaves gently so there's some movement and realism
 - [x] ok the palm trees are looking good, but the leaf "blades" are way too thin? like they probably need to be 7-10 times the width they are now? also i'm not sure if the light green stripes look that good. a solid green would be much better.

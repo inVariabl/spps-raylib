@@ -22,6 +22,9 @@ void InitPlayer(Player *player) {
         player->inventory[i].itemId = 0;
         player->inventory[i].quantity = 0;
     }
+
+    player->showInventory = true;
+    player->showMap = true;
 }
 
 #include "world.h"
@@ -30,7 +33,10 @@ void UpdatePlayer(Player *player, World *world, bool isFirstPerson) {
     // Handle Keyboard Movement (WASD)
     Vector3Int move = {0, 0, 0};
     
-    player->moveTimer -= GetFrameTime();
+    float speedMultiplier = 1.0f;
+    if (IsKeyDown(KEY_LEFT_SHIFT)) speedMultiplier = 10.0f;
+
+    player->moveTimer -= GetFrameTime() * speedMultiplier;
 
     if (player->moveTimer <= 0) {
         if (isFirstPerson) {
@@ -88,13 +94,19 @@ void UpdatePlayer(Player *player, World *world, bool isFirstPerson) {
     
     // Smooth visual movement (Lerp) towards current target tile
     // Faster lerp for "smoother" FPS feel
-    float lerpSpeed = isFirstPerson ? 0.3f : 0.15f;
+    float baseLerp = isFirstPerson ? 0.3f : 0.15f;
+    float lerpSpeed = baseLerp * speedMultiplier;
+    if (lerpSpeed > 1.0f) lerpSpeed = 1.0f;
+    
     player->lerpPosition.x = Lerp(player->lerpPosition.x, targetPos.x, lerpSpeed);
     player->lerpPosition.y = 0; 
     player->lerpPosition.z = Lerp(player->lerpPosition.z, targetPos.z, lerpSpeed);
 
     // If close to current target tile, move to next step in path
-    if (Vector3Distance(player->lerpPosition, targetPos) < 0.1f) {
+    float reachDistance = 0.1f * speedMultiplier;
+    if (reachDistance > 0.5f) reachDistance = 0.5f; // Don't make it too large
+
+    if (Vector3Distance(player->lerpPosition, targetPos) < reachDistance) {
         player->position = player->target;
         
         if (player->pathIndex < player->pathSize - 1) {

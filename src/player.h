@@ -23,6 +23,9 @@ typedef struct {
     int maxSpirit;
     int activeQuestId; // 0 = None
     QuestState questStates[10]; // Tracking states for first 10 quests
+
+    bool showInventory;
+    bool showMap;
 } Player;
 
 void InitPlayer(Player *player);

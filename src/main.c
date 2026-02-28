@@ -146,6 +146,11 @@ int main() {
         } else {
             UpdatePlayer(&player, &world, isFirstPerson);
             UpdateWorld(&world, &player);
+            
+            // Key Bindings
+            if (IsKeyPressed(KEY_C)) TryCraftTent(&player);
+            if (IsKeyPressed(KEY_I)) player.showInventory = !player.showInventory;
+            if (IsKeyPressed(KEY_M)) player.showMap = !player.showMap;
         }
 
         // 3. Rendering
