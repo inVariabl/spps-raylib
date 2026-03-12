@@ -17,6 +17,7 @@ typedef struct {
 
 #define MAX_WATER_REGIONS 8
 #define MAX_PORTS 8
+#define MAX_LAND_POLY 8
 
 typedef enum {
     WORLD_JUDEA = 0,
@@ -69,6 +70,8 @@ typedef struct {
     bool hasSnake;
     Vector3Int houseArrestPos;
     bool hasHouseArrest;
+    Vector2 landPoly[MAX_LAND_POLY];
+    int landPolyCount;
     int minX;
     int maxX;
     int minZ;

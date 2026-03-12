@@ -98,6 +98,7 @@ static void ClearWorldState(World *world) {
     world->state.hasJulius = false;
     world->state.hasSnake = false;
     world->state.hasHouseArrest = false;
+    world->state.landPolyCount = 0;
 }
 
 static void AddPalmCluster(World *world, int startIdx, int count, int minX, int maxX, int minZ, int maxZ) {
@@ -161,8 +162,19 @@ void LoadWorld(World *world, WorldId worldId) {
             world->state.maxX = 190;
             world->state.minZ = 200;
             world->state.maxZ = 360;
-            world->state.water[0] = (WaterRegion){100, 220, 180, 380};
-            world->state.waterCount = 1;
+            // Sea around the island (leave center for land)
+            world->state.water[0] = (WaterRegion){50, 190, 200, 225};   // south band
+            world->state.water[1] = (WaterRegion){50, 190, 335, 360};   // north band
+            world->state.water[2] = (WaterRegion){50, 70, 225, 335};    // west band
+            world->state.water[3] = (WaterRegion){170, 190, 225, 335};  // east band
+            world->state.waterCount = 4;
+            world->state.landPolyCount = 6;
+            world->state.landPoly[0] = (Vector2){70, 230};
+            world->state.landPoly[1] = (Vector2){165, 235};
+            world->state.landPoly[2] = (Vector2){175, 285};
+            world->state.landPoly[3] = (Vector2){150, 330};
+            world->state.landPoly[4] = (Vector2){90, 335};
+            world->state.landPoly[5] = (Vector2){65, 280};
             AddPalmCluster(world, 0, 45, 70, 170, 220, 340);
             world->state.ports[0] = (Port){(Vector3Int){80, 0, 260}, "Fair Havens", 0, true};
             world->state.portCount = 1;
@@ -176,6 +188,19 @@ void LoadWorld(World *world, WorldId worldId) {
             world->state.maxX = 150;
             world->state.minZ = 360;
             world->state.maxZ = 460;
+            // Sea around the island (leave center for land)
+            world->state.water[0] = (WaterRegion){70, 150, 360, 380};   // south band
+            world->state.water[1] = (WaterRegion){70, 150, 440, 460};   // north band
+            world->state.water[2] = (WaterRegion){70, 90, 380, 440};    // west band
+            world->state.water[3] = (WaterRegion){130, 150, 380, 440};  // east band
+            world->state.waterCount = 4;
+            world->state.landPolyCount = 6;
+            world->state.landPoly[0] = (Vector2){90, 385};
+            world->state.landPoly[1] = (Vector2){130, 390};
+            world->state.landPoly[2] = (Vector2){140, 415};
+            world->state.landPoly[3] = (Vector2){125, 440};
+            world->state.landPoly[4] = (Vector2){95, 435};
+            world->state.landPoly[5] = (Vector2){85, 405};
             AddPalmCluster(world, 0, 15, 80, 140, 370, 450);
             world->state.decos[20] = (Decoration){(Vector3Int){120, 0, 410}, DECO_ROCK};
             world->state.decos[21] = (Decoration){(Vector3Int){100, 0, 420}, DECO_ROCK};
@@ -255,10 +280,14 @@ void DrawWorld(World *world, Camera3D camera) {
     float sizeX = (float)(world->state.maxX - world->state.minX);
     float sizeZ = (float)(world->state.maxZ - world->state.minZ);
     Vector3 floorPos = {centerX, -0.01f, centerZ};
-    DrawPlane(floorPos, (Vector2){sizeX, sizeZ}, BEIGE);
-    int gridCount = (int)(fmaxf(sizeX, sizeZ) / 2.0f);
-    if (gridCount < 10) gridCount = 10;
-    DrawGrid(gridCount, TILE_SIZE);
+    if (world->state.landPolyCount > 2) {
+        DrawPlane(floorPos, (Vector2){sizeX, sizeZ}, BEIGE);
+    } else {
+        DrawPlane(floorPos, (Vector2){sizeX, sizeZ}, BEIGE);
+        int gridCount = (int)(fmaxf(sizeX, sizeZ) / 2.0f);
+        if (gridCount < 10) gridCount = 10;
+        DrawGrid(gridCount, TILE_SIZE);
+    }
 
     // 1.5 Water regions
     for (int i = 0; i < world->state.waterCount; i++) {
@@ -270,6 +299,17 @@ void DrawWorld(World *world, Camera3D camera) {
         Vector3 pos = {centerX, -0.02f, centerZ};
         Vector3 size = {width, 0.05f, depth};
         DrawCubeV(pos, size, Fade(BLUE, 0.6f));
+    }
+
+    if (world->state.landPolyCount > 2) {
+        Vector2 *poly = world->state.landPoly;
+        for (int i = 1; i < world->state.landPolyCount - 1; i++) {
+            Vector3 a = {poly[0].x, -0.01f, poly[0].y};
+            Vector3 b = {poly[i].x, -0.01f, poly[i].y};
+            Vector3 c = {poly[i + 1].x, -0.01f, poly[i + 1].y};
+            DrawTriangle3D(a, b, c, BEIGE);
+            DrawTriangle3D(a, c, b, BEIGE);
+        }
     }
 
     // 2. Road System (guidance path)
@@ -333,7 +373,6 @@ void DrawWorld(World *world, Camera3D camera) {
                 // Flickering flame triangles
                 float flicker = sinf(t * 8.0f) * 0.08f;
                 float height = 0.9f + flicker;
-                Vector3 base = {pos.x, 0.25f, pos.z};
                 Vector3 tip = {pos.x, 0.25f + height, pos.z};
                 Vector3 left = {pos.x - 0.35f, 0.25f, pos.z};
                 Vector3 right = {pos.x + 0.35f, 0.25f, pos.z};
@@ -432,6 +471,17 @@ bool IsTileBlocked(World *world, Vector3Int pos) {
 }
 
 bool IsWaterTile(World *world, Vector3Int pos) {
+    if (world->state.landPolyCount > 2) {
+        int inside = 0;
+        for (int i = 0, j = world->state.landPolyCount - 1; i < world->state.landPolyCount; j = i++) {
+            Vector2 pi = world->state.landPoly[i];
+            Vector2 pj = world->state.landPoly[j];
+            bool intersect = ((pi.y > pos.z) != (pj.y > pos.z)) &&
+                (pos.x < (pj.x - pi.x) * (pos.z - pi.y) / (pj.y - pi.y + 0.0001f) + pi.x);
+            if (intersect) inside = !inside;
+        }
+        if (inside) return false;
+    }
     for (int i = 0; i < world->state.waterCount; i++) {
         WaterRegion r = world->state.water[i];
         if (pos.x >= r.minX && pos.x <= r.maxX && pos.z >= r.minZ && pos.z <= r.maxZ) {
