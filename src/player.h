@@ -26,6 +26,7 @@ typedef struct {
 
     bool showInventory;
     bool showMap;
+
 } Player;
 
 void InitPlayer(Player *player);

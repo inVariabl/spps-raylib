@@ -89,15 +89,19 @@ void DrawHUD(Player *player, World *world, bool isFirstPerson) {
 
         // Nearby Cities on compass
         for (int i = 0; i < sizeof(worldMap)/sizeof(City); i++) {
+            if (worldMap[i].coords.x < world->state.minX || worldMap[i].coords.x > world->state.maxX ||
+                worldMap[i].coords.z < world->state.minZ || worldMap[i].coords.z > world->state.maxZ) {
+                continue;
+            }
             // Calculate relative direction
             float dx = (float)worldMap[i].coords.x - player->lerpPosition.x;
             float dz = (float)worldMap[i].coords.z - player->lerpPosition.z;
             float dist = sqrtf(dx*dx + dz*dz);
             
-            if (dist < 1000.0f) {
+            if (dist < 600.0f) {
                 // Map angle to X position on compass bar (-45 to 45 degrees visible)
                 // For a simple horizontal bar, we use the relative X/Z
-                float relativeX = dx / 1000.0f; // -1 to 1
+                float relativeX = dx / 600.0f; // -1 to 1
                 int markerX = compassX + compassW/2 + (int)(relativeX * (compassW/2));
                 
                 if (markerX > compassX + 5 && markerX < compassX + compassW - 15) {
@@ -117,18 +121,43 @@ void DrawHUD(Player *player, World *world, bool isFirstPerson) {
 
         // Draw cities on map
         for (int i = 0; i < sizeof(worldMap)/sizeof(City); i++) {
-            int cityX = mapX + mapW/2 + worldMap[i].coords.x / 10;
-            int cityZ = mapY + mapH/2 + worldMap[i].coords.z / 10;
+            if (worldMap[i].coords.x < world->state.minX || worldMap[i].coords.x > world->state.maxX ||
+                worldMap[i].coords.z < world->state.minZ || worldMap[i].coords.z > world->state.maxZ) {
+                continue;
+            }
+            int cityX = mapX + mapW/2 + worldMap[i].coords.x / 5;
+            int cityZ = mapY + mapH/2 + worldMap[i].coords.z / 5;
             if (cityX > mapX && cityX < mapX + mapW && cityZ > mapY && cityZ < mapY + mapH) {
                 DrawCircle(cityX, cityZ, 2, RED);
             }
         }
         // Draw player
-        int px = mapX + mapW/2 + (int)player->lerpPosition.x / 10;
-        int pz = mapY + mapH/2 + (int)player->lerpPosition.z / 10;
+        int px = mapX + mapW/2 + (int)player->lerpPosition.x / 5;
+        int pz = mapY + mapH/2 + (int)player->lerpPosition.z / 5;
         if (px > mapX && px < mapX + mapW && pz > mapY && pz < mapY + mapH) {
             DrawCircle(px, pz, 3, GREEN);
         }
+    }
+
+    // Objective + Port travel prompt
+    int portIdx = GetPortAt(world, player->position);
+    if (world->state.nextWorldId != WORLD_NONE) {
+        const char *targetName = world->state.nextWorldName;
+        DrawRectangle(10, 90, 300, 28, Fade(BLACK, 0.6f));
+        DrawText(TextFormat("Objective: Travel to %s", targetName), 18, 96, 16, YELLOW);
+
+        if (portIdx != -1) {
+            int msgX = GetScreenWidth() / 2 - 140;
+            int msgY = GetScreenHeight() - 80;
+            DrawRectangle(msgX - 10, msgY - 8, 320, 26, Fade(BLACK, 0.6f));
+            const char *fromName = world->state.ports[portIdx].name;
+            const char *toName = world->state.nextWorldName;
+            DrawText(TextFormat("Press T to travel from %s to %s", fromName, toName),
+                     msgX, msgY, 16, SKYBLUE);
+        }
+    } else {
+        DrawRectangle(10, 90, 300, 28, Fade(BLACK, 0.6f));
+        DrawText("Objective: Follow the road to Rome", 18, 96, 16, YELLOW);
     }
 
     // QUEST LOG

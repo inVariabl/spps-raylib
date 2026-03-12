@@ -9,6 +9,24 @@
 
 Texture2D spriteDatabase[SPRITE_COUNT];
 
+static void MovePlayerToPort(Player *player, World *world, int portIdx) {
+    Vector3Int p = world->state.ports[portIdx].position;
+    player->position = p;
+    player->target = p;
+    player->finalTarget = p;
+    player->pathSize = 0;
+    player->pathIndex = 0;
+    player->lerpPosition = (Vector3){(float)p.x, 0.0f, (float)p.z};
+}
+
+static void HandlePortTravel(Player *player, World *world, int portIdx) {
+    if (world->state.nextWorldId == WORLD_NONE) return;
+    LoadWorld(world, world->state.nextWorldId);
+    if (world->state.portCount > 0) {
+        MovePlayerToPort(player, world, 0);
+    }
+}
+
 void LoadSprites() {
     Image imgPaul = GenImageChecked(32, 64, 8, 8, BLUE, WHITE);
     spriteDatabase[SPRITE_PAUL] = LoadTextureFromImage(imgPaul);
@@ -107,7 +125,7 @@ int main() {
                     if (player.questStates[1] == QUEST_NOT_STARTED) {
                         player.activeQuestId = 1;
                         player.questStates[1] = QUEST_ACTIVE;
-                    } else if (player.questStates[1] == QUEST_ACTIVE && player.position.x == 150 && player.position.z == 500) {
+                    } else if (player.questStates[1] == QUEST_ACTIVE && player.position.x == 75 && player.position.z == 250) {
                         player.questStates[1] = QUEST_COMPLETED;
                         player.activeQuestId = 0;
                         player.skills[SKILL_ORATORY].currentXp += 500;
@@ -144,6 +162,11 @@ int main() {
         if (combat.active) {
             UpdateCombat(&combat, &player);
         } else {
+            int portIdx = GetPortAt(&world, player.position);
+            if (portIdx != -1 && IsKeyPressed(KEY_T)) {
+                HandlePortTravel(&player, &world, portIdx);
+            }
+
             UpdatePlayer(&player, &world, isFirstPerson);
             UpdateWorld(&world, &player);
             
@@ -160,6 +183,14 @@ int main() {
         BeginMode3D(camera);
         DrawWorld(&world, camera);
         if (!isFirstPerson) DrawPlayer(&player, camera);
+
+        // Objective beacon at next port
+        if (world.state.portCount > 0 && world.state.nextWorldId != WORLD_NONE) {
+            Vector3Int p = world.state.ports[0].position;
+            Vector3 base = {(float)p.x, 0.0f, (float)p.z};
+            DrawCylinder(base, 0.35f, 0.35f, 2.0f, 8, Fade(YELLOW, 0.7f));
+            DrawSphere((Vector3){base.x, 2.2f, base.z}, 0.2f, YELLOW);
+        }
 
         // Destination Marker
         if (!combat.active && Vector3Distance(player.lerpPosition, (Vector3){(float)player.target.x, (float)player.target.y, (float)player.target.z}) > 0.1f) {
