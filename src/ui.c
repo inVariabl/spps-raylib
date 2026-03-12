@@ -1,5 +1,6 @@
 #include "ui.h"
 #include <stdio.h>
+#include <stdlib.h>
 
 void DrawInventory(Player *player) {
     if (!player->showInventory) return;
@@ -158,6 +159,34 @@ void DrawHUD(Player *player, World *world, bool isFirstPerson) {
     } else {
         DrawRectangle(10, 90, 300, 28, Fade(BLACK, 0.6f));
         DrawText("Objective: Follow the road to Rome", 18, 96, 16, YELLOW);
+    }
+
+    if (world->state.hasJulius) {
+        Vector3Int j = world->state.juliusPos;
+        if (abs(player->position.x - j.x) <= 5 && abs(player->position.z - j.z) <= 5) {
+            DrawRectangle(10, 120, 360, 24, Fade(BLACK, 0.6f));
+            DrawText("Julius: You may visit friends in Sidon.", 18, 124, 14, SKYBLUE);
+        }
+    }
+    if (world->state.hasSnake) {
+        Vector3Int s = world->state.snakePos;
+        if (abs(player->position.x - s.x) <= 6 && abs(player->position.z - s.z) <= 6) {
+            DrawRectangle(10, 150, 360, 24, Fade(BLACK, 0.6f));
+            DrawText("A viper strikes, but Paul is unharmed.", 18, 154, 14, ORANGE);
+        }
+    }
+    if (!player->gameComplete && world->state.hasHouseArrest) {
+        Vector3Int h = world->state.houseArrestPos;
+        if (abs(player->position.x - h.x) <= 4 && abs(player->position.z - h.z) <= 4) {
+            DrawRectangle(10, 180, 360, 24, Fade(BLACK, 0.6f));
+            DrawText("Press H to enter house arrest", 18, 184, 14, GOLD);
+        }
+    }
+    if (player->gameComplete) {
+        int w = GetScreenWidth();
+        int h = GetScreenHeight();
+        DrawRectangle(0, 0, w, h, Fade(BLACK, 0.6f));
+        DrawText("Arrived in Rome - House Arrest", w/2 - 170, h/2 - 10, 20, GOLD);
     }
 
     // QUEST LOG

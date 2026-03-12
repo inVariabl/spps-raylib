@@ -1,9 +1,15 @@
-Plan to implement water, ports, and travel
+Plan to implement water, ports, travel, and Acts-based world details
 
-1. Add water regions to the world state as axis-aligned rectangles in grid space.
-2. Mark water tiles as blocked in IsTileBlocked to prevent walking on water.
-3. Add static port positions along the shoreline with a sequential next-port index.
-4. Render water regions and port markers in DrawWorld.
-5. Detect when the player is on a port tile, show a "Press T to travel" prompt, and handle travel input.
-6. Implement a travel stub that returns win/loss, then move the player to the same or next port based on the result.
-7. Leave a clear hook to replace the stub with the colleague's game mode later.
+1. Keep worlds separated by travel and enforce strict bounds so each world is a focused play area.
+2. Add per-world landmarks and props tied to Acts 27–28 and historical flavor:
+   - Judea/Sidon: port ship prop, Julius centurion nearby.
+   - Myra: grain ship transfer (large ship prop, granary stacks).
+   - Fair Havens (Crete): small shelter/chapel ruins, heavy palm cover.
+   - Malta: snake encounter near a fire pit, rocky shore feel.
+   - Syracuse: harbor arch/lighthouse marker.
+   - Rhegium: wind/flag cues and a quick stop feeling.
+   - Puteoli: small town cluster and welcome scene.
+   - Rome: forum plaza/columns, house arrest home with guard; entering ends the game.
+3. Represent landmarks with new decoration types (ship, column, forum/arch, fire pit) and simple geometry.
+4. Add lightweight interaction cues (HUD text when near Julius, snake, or house arrest).
+5. End game when the player reaches the Rome house arrest location.

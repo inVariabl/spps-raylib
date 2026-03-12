@@ -26,6 +26,7 @@ typedef struct {
 
     bool showInventory;
     bool showMap;
+    bool gameComplete;
 
 } Player;
 

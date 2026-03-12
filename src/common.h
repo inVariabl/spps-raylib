@@ -74,6 +74,11 @@ typedef enum {
     DECO_HOUSE,
     DECO_SYNAGOGUE,
     DECO_TEMPLE,
+    DECO_SHIP,
+    DECO_COLUMN,
+    DECO_FORUM_ARCH,
+    DECO_FIRE_PIT,
+    DECO_SNAKE,
     DECO_MARKET,
     DECO_COUNT
 } DecorationType;

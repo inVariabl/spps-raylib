@@ -25,6 +25,7 @@ void InitPlayer(Player *player) {
 
     player->showInventory = true;
     player->showMap = true;
+    player->gameComplete = false;
 }
 
 #include "world.h"

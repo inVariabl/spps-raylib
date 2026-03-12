@@ -95,6 +95,9 @@ static void ClearWorldState(World *world) {
     for (int i = 0; i < MAX_DECORATIONS; i++) world->state.decos[i].type = DECO_NONE;
     world->state.waterCount = 0;
     world->state.portCount = 0;
+    world->state.hasJulius = false;
+    world->state.hasSnake = false;
+    world->state.hasHouseArrest = false;
 }
 
 static void AddPalmCluster(World *world, int startIdx, int count, int minX, int maxX, int minZ, int maxZ) {
@@ -131,6 +134,9 @@ void LoadWorld(World *world, WorldId worldId) {
             AddPalmCluster(world, 10, 20, -20, 20, 5, 80);
             world->state.ports[0] = (Port){(Vector3Int){80, 0, 20}, "Sidon", 0, true};
             world->state.portCount = 1;
+            world->state.decos[30] = (Decoration){(Vector3Int){88, 0, 16}, DECO_SHIP};
+            world->state.juliusPos = (Vector3Int){78, 0, 22};
+            world->state.hasJulius = true;
             break;
         case WORLD_MYRA:
             world->state.worldName = "Lycia (Myra)";
@@ -145,6 +151,7 @@ void LoadWorld(World *world, WorldId worldId) {
             world->state.decos[21] = (Decoration){(Vector3Int){92, 0, 165}, DECO_HOUSE};
             world->state.ports[0] = (Port){(Vector3Int){109, 0, 160}, "Myra", 0, true};
             world->state.portCount = 1;
+            world->state.decos[22] = (Decoration){(Vector3Int){118, 0, 150}, DECO_SHIP};
             break;
         case WORLD_FAIR_HAVENS:
             world->state.worldName = "Fair Havens (Crete)";
@@ -159,6 +166,7 @@ void LoadWorld(World *world, WorldId worldId) {
             AddPalmCluster(world, 0, 45, 70, 170, 220, 340);
             world->state.ports[0] = (Port){(Vector3Int){80, 0, 260}, "Fair Havens", 0, true};
             world->state.portCount = 1;
+            world->state.decos[40] = (Decoration){(Vector3Int){90, 0, 275}, DECO_COLUMN};
             break;
         case WORLD_MALTA:
             world->state.worldName = "Malta";
@@ -171,8 +179,12 @@ void LoadWorld(World *world, WorldId worldId) {
             AddPalmCluster(world, 0, 15, 80, 140, 370, 450);
             world->state.decos[20] = (Decoration){(Vector3Int){120, 0, 410}, DECO_ROCK};
             world->state.decos[21] = (Decoration){(Vector3Int){100, 0, 420}, DECO_ROCK};
+            world->state.decos[22] = (Decoration){(Vector3Int){109, 0, 418}, DECO_FIRE_PIT};
+            world->state.decos[23] = (Decoration){(Vector3Int){109, 0, 418}, DECO_SNAKE};
             world->state.ports[0] = (Port){(Vector3Int){109, 0, 430}, "Malta", 0, true};
             world->state.portCount = 1;
+            world->state.snakePos = (Vector3Int){109, 0, 418};
+            world->state.hasSnake = true;
             break;
         case WORLD_SYRACUSE:
             world->state.worldName = "Syracuse (Sicily)";
@@ -183,6 +195,7 @@ void LoadWorld(World *world, WorldId worldId) {
             world->state.minZ = 470;
             world->state.maxZ = 540;
             AddPalmCluster(world, 0, 10, 85, 135, 480, 530);
+            world->state.decos[10] = (Decoration){(Vector3Int){109, 0, 510}, DECO_FORUM_ARCH};
             world->state.ports[0] = (Port){(Vector3Int){109, 0, 500}, "Syracuse", 0, true};
             world->state.portCount = 1;
             break;
@@ -195,6 +208,7 @@ void LoadWorld(World *world, WorldId worldId) {
             world->state.minZ = 540;
             world->state.maxZ = 600;
             AddPalmCluster(world, 0, 8, 85, 135, 545, 595);
+            world->state.decos[10] = (Decoration){(Vector3Int){120, 0, 565}, DECO_COLUMN};
             world->state.ports[0] = (Port){(Vector3Int){109, 0, 570}, "Rhegium", 0, true};
             world->state.portCount = 1;
             break;
@@ -208,8 +222,19 @@ void LoadWorld(World *world, WorldId worldId) {
             world->state.maxZ = 760;
             world->state.decos[0] = (Decoration){(Vector3Int){100, 0, 600}, DECO_HOUSE};
             world->state.decos[1] = (Decoration){(Vector3Int){90, 0, 610}, DECO_HOUSE};
+            world->state.decos[2] = (Decoration){(Vector3Int){70, 0, 660}, DECO_FORUM_ARCH};
+            world->state.decos[3] = (Decoration){(Vector3Int){40, 0, 650}, DECO_COLUMN};
+            world->state.decos[4] = (Decoration){(Vector3Int){30, 0, 650}, DECO_COLUMN};
+            world->state.decos[5] = (Decoration){(Vector3Int){20, 0, 650}, DECO_COLUMN};
+            world->state.decos[6] = (Decoration){(Vector3Int){40, 0, 670}, DECO_COLUMN};
+            world->state.decos[7] = (Decoration){(Vector3Int){30, 0, 670}, DECO_COLUMN};
+            world->state.decos[8] = (Decoration){(Vector3Int){20, 0, 670}, DECO_COLUMN};
+            world->state.decos[9] = (Decoration){(Vector3Int){30, 0, 690}, DECO_TEMPLE};
+            world->state.decos[10] = (Decoration){(Vector3Int){0, 0, 720}, DECO_HOUSE};
             world->state.ports[0] = (Port){(Vector3Int){109, 0, 560}, "Puteoli", 0, true};
             world->state.portCount = 1;
+            world->state.houseArrestPos = (Vector3Int){0, 0, 720};
+            world->state.hasHouseArrest = true;
             break;
         default:
             break;
@@ -288,6 +313,64 @@ void DrawWorld(World *world, Camera3D camera) {
                 }
                 DrawCube((Vector3){pos.x, 5.5f, pos.z}, 11, 1, 14, WHITE); // Roof
                 break;
+            case DECO_SHIP:
+                DrawCube((Vector3){pos.x, 0.4f, pos.z}, 6.0f, 0.8f, 2.0f, BROWN); // Hull
+                DrawCylinder((Vector3){pos.x, 1.6f, pos.z}, 0.15f, 0.15f, 2.8f, 6, DARKBROWN); // Mast
+                DrawCube((Vector3){pos.x + 0.8f, 2.4f, pos.z}, 2.5f, 1.2f, 0.1f, BEIGE); // Sail
+                break;
+            case DECO_COLUMN:
+                DrawCylinder((Vector3){pos.x, 0, pos.z}, 0.25f, 0.25f, 3.0f, 8, LIGHTGRAY);
+                DrawCube((Vector3){pos.x, 3.1f, pos.z}, 0.8f, 0.2f, 0.8f, WHITE);
+                break;
+            case DECO_FORUM_ARCH:
+                DrawCube((Vector3){pos.x, 1.0f, pos.z}, 4.0f, 2.0f, 1.0f, LIGHTGRAY);
+                DrawCube((Vector3){pos.x, 2.2f, pos.z}, 4.5f, 0.4f, 1.2f, WHITE);
+                break;
+            case DECO_FIRE_PIT:
+            {
+                float t = (float)GetTime();
+                DrawCylinder((Vector3){pos.x, 0.1f, pos.z}, 0.9f, 0.9f, 0.25f, 8, DARKGRAY);
+                // Flickering flame triangles
+                float flicker = sinf(t * 8.0f) * 0.08f;
+                float height = 0.9f + flicker;
+                Vector3 base = {pos.x, 0.25f, pos.z};
+                Vector3 tip = {pos.x, 0.25f + height, pos.z};
+                Vector3 left = {pos.x - 0.35f, 0.25f, pos.z};
+                Vector3 right = {pos.x + 0.35f, 0.25f, pos.z};
+                Vector3 front = {pos.x, 0.25f, pos.z - 0.35f};
+                Vector3 back = {pos.x, 0.25f, pos.z + 0.35f};
+
+                DrawTriangle3D(left, tip, right, ORANGE);
+                DrawTriangle3D(right, tip, left, ORANGE);
+                DrawTriangle3D(front, tip, back, RED);
+                DrawTriangle3D(back, tip, front, RED);
+
+                Vector3 tip2 = {pos.x + 0.1f, 0.25f + height * 0.7f, pos.z - 0.05f};
+                Vector3 l2 = {pos.x - 0.15f, 0.25f, pos.z - 0.05f};
+                Vector3 r2 = {pos.x + 0.25f, 0.25f, pos.z + 0.05f};
+                DrawTriangle3D(l2, tip2, r2, YELLOW);
+                DrawTriangle3D(r2, tip2, l2, YELLOW);
+
+                // Smoke puffs
+                float smokeRise = fmodf(t * 0.6f, 1.0f);
+                DrawSphere((Vector3){pos.x + 0.05f, 0.9f + smokeRise * 1.6f, pos.z - 0.05f},
+                           0.15f + smokeRise * 0.15f, Fade(GRAY, 0.35f));
+                DrawSphere((Vector3){pos.x - 0.1f, 1.1f + smokeRise * 1.4f, pos.z + 0.1f},
+                           0.12f + smokeRise * 0.12f, Fade(GRAY, 0.25f));
+            }
+                break;
+            case DECO_SNAKE:
+            {
+                float t = (float)GetTime();
+                float radius = 1.4f;
+                Vector3 center = pos;
+                Vector3 sPos = {center.x + cosf(t * 1.5f) * radius,
+                                0.12f + sinf(t * 2.0f) * 0.02f,
+                                center.z + sinf(t * 1.5f) * radius};
+                DrawCube((Vector3){sPos.x, 0.1f, sPos.z}, 1.0f, 0.15f, 0.6f, DARKGREEN);
+                DrawSphere((Vector3){sPos.x + 0.45f, 0.2f, sPos.z}, 0.2f, GREEN);
+            }
+                break;
             default: break;
         }
     }
@@ -334,6 +417,9 @@ bool IsTileBlocked(World *world, Vector3Int pos) {
         if (world->state.decos[i].type == DECO_SYNAGOGUE) halfSize = 3;
         else if (world->state.decos[i].type == DECO_TEMPLE) halfSize = 6;
         else if (world->state.decos[i].type == DECO_HOUSE) halfSize = 2;
+        else if (world->state.decos[i].type == DECO_SHIP) halfSize = 3;
+        else if (world->state.decos[i].type == DECO_FORUM_ARCH) halfSize = 2;
+        else if (world->state.decos[i].type == DECO_SNAKE) halfSize = 0;
         
         if (pos.x >= world->state.decos[i].position.x - halfSize && 
             pos.x <= world->state.decos[i].position.x + halfSize &&

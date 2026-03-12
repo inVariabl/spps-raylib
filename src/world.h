@@ -63,6 +63,12 @@ typedef struct {
     WorldId nextWorldId;
     const char *worldName;
     const char *nextWorldName;
+    Vector3Int juliusPos;
+    bool hasJulius;
+    Vector3Int snakePos;
+    bool hasSnake;
+    Vector3Int houseArrestPos;
+    bool hasHouseArrest;
     int minX;
     int maxX;
     int minZ;

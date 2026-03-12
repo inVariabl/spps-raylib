@@ -6,6 +6,7 @@
 #include "combat.h"
 #include "scripture.h"
 #include <stdio.h>
+#include <stdlib.h>
 
 Texture2D spriteDatabase[SPRITE_COUNT];
 
@@ -167,13 +168,24 @@ int main() {
                 HandlePortTravel(&player, &world, portIdx);
             }
 
-            UpdatePlayer(&player, &world, isFirstPerson);
+            if (!player.gameComplete) {
+                UpdatePlayer(&player, &world, isFirstPerson);
+            }
             UpdateWorld(&world, &player);
             
             // Key Bindings
             if (IsKeyPressed(KEY_C)) TryCraftTent(&player);
             if (IsKeyPressed(KEY_I)) player.showInventory = !player.showInventory;
             if (IsKeyPressed(KEY_M)) player.showMap = !player.showMap;
+
+            if (!player.gameComplete && world.state.hasHouseArrest) {
+                Vector3Int h = world.state.houseArrestPos;
+                if (abs(player.position.x - h.x) <= 3 && abs(player.position.z - h.z) <= 3) {
+                    if (IsKeyPressed(KEY_H)) {
+                        player.gameComplete = true;
+                    }
+                }
+            }
         }
 
         // 3. Rendering
