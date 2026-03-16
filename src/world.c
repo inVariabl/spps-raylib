@@ -119,8 +119,8 @@ void LoadWorld(World *world, WorldId worldId) {
     switch (worldId) {
         case WORLD_JUDEA:
             world->state.worldName = "Judea";
-            world->state.nextWorldName = "Myra";
-            world->state.nextWorldId = WORLD_MYRA;
+            world->state.nextWorldName = "Malta";
+            world->state.nextWorldId = WORLD_MALTA;
             world->state.minX = -40;
             world->state.maxX = 140;
             world->state.minZ = -40;
@@ -139,51 +139,10 @@ void LoadWorld(World *world, WorldId worldId) {
             world->state.juliusPos = (Vector3Int){78, 0, 22};
             world->state.hasJulius = true;
             break;
-        case WORLD_MYRA:
-            world->state.worldName = "Lycia (Myra)";
-            world->state.nextWorldName = "Fair Havens";
-            world->state.nextWorldId = WORLD_FAIR_HAVENS;
-            world->state.minX = 60;
-            world->state.maxX = 140;
-            world->state.minZ = 120;
-            world->state.maxZ = 220;
-            AddPalmCluster(world, 0, 12, 70, 130, 130, 210);
-            world->state.decos[20] = (Decoration){(Vector3Int){100, 0, 170}, DECO_HOUSE};
-            world->state.decos[21] = (Decoration){(Vector3Int){92, 0, 165}, DECO_HOUSE};
-            world->state.ports[0] = (Port){(Vector3Int){109, 0, 160}, "Myra", 0, true};
-            world->state.portCount = 1;
-            world->state.decos[22] = (Decoration){(Vector3Int){118, 0, 150}, DECO_SHIP};
-            break;
-        case WORLD_FAIR_HAVENS:
-            world->state.worldName = "Fair Havens (Crete)";
-            world->state.nextWorldName = "Malta";
-            world->state.nextWorldId = WORLD_MALTA;
-            world->state.minX = 50;
-            world->state.maxX = 190;
-            world->state.minZ = 200;
-            world->state.maxZ = 360;
-            // Sea around the island (leave center for land)
-            world->state.water[0] = (WaterRegion){50, 190, 200, 225};   // south band
-            world->state.water[1] = (WaterRegion){50, 190, 335, 360};   // north band
-            world->state.water[2] = (WaterRegion){50, 70, 225, 335};    // west band
-            world->state.water[3] = (WaterRegion){170, 190, 225, 335};  // east band
-            world->state.waterCount = 4;
-            world->state.landPolyCount = 6;
-            world->state.landPoly[0] = (Vector2){70, 230};
-            world->state.landPoly[1] = (Vector2){165, 235};
-            world->state.landPoly[2] = (Vector2){175, 285};
-            world->state.landPoly[3] = (Vector2){150, 330};
-            world->state.landPoly[4] = (Vector2){90, 335};
-            world->state.landPoly[5] = (Vector2){65, 280};
-            AddPalmCluster(world, 0, 45, 70, 170, 220, 340);
-            world->state.ports[0] = (Port){(Vector3Int){80, 0, 260}, "Fair Havens", 0, true};
-            world->state.portCount = 1;
-            world->state.decos[40] = (Decoration){(Vector3Int){90, 0, 275}, DECO_COLUMN};
-            break;
         case WORLD_MALTA:
             world->state.worldName = "Malta";
-            world->state.nextWorldName = "Syracuse";
-            world->state.nextWorldId = WORLD_SYRACUSE;
+            world->state.nextWorldName = "Puteoli";
+            world->state.nextWorldId = WORLD_PUTEOLI;
             world->state.minX = 70;
             world->state.maxX = 150;
             world->state.minZ = 360;
@@ -210,32 +169,6 @@ void LoadWorld(World *world, WorldId worldId) {
             world->state.portCount = 1;
             world->state.snakePos = (Vector3Int){109, 0, 418};
             world->state.hasSnake = true;
-            break;
-        case WORLD_SYRACUSE:
-            world->state.worldName = "Syracuse (Sicily)";
-            world->state.nextWorldName = "Rhegium";
-            world->state.nextWorldId = WORLD_RHEGIUM;
-            world->state.minX = 70;
-            world->state.maxX = 150;
-            world->state.minZ = 470;
-            world->state.maxZ = 540;
-            AddPalmCluster(world, 0, 10, 85, 135, 480, 530);
-            world->state.decos[10] = (Decoration){(Vector3Int){109, 0, 510}, DECO_FORUM_ARCH};
-            world->state.ports[0] = (Port){(Vector3Int){109, 0, 500}, "Syracuse", 0, true};
-            world->state.portCount = 1;
-            break;
-        case WORLD_RHEGIUM:
-            world->state.worldName = "Rhegium";
-            world->state.nextWorldName = "Puteoli";
-            world->state.nextWorldId = WORLD_PUTEOLI;
-            world->state.minX = 70;
-            world->state.maxX = 150;
-            world->state.minZ = 540;
-            world->state.maxZ = 600;
-            AddPalmCluster(world, 0, 8, 85, 135, 545, 595);
-            world->state.decos[10] = (Decoration){(Vector3Int){120, 0, 565}, DECO_COLUMN};
-            world->state.ports[0] = (Port){(Vector3Int){109, 0, 570}, "Rhegium", 0, true};
-            world->state.portCount = 1;
             break;
         case WORLD_PUTEOLI:
             world->state.worldName = "Puteoli";
