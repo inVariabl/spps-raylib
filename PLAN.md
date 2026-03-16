@@ -7,10 +7,10 @@
 - [ ] 6. cut to shauns game
 
 # Malta
-- [ ] light fire mechanic? then snake shows up?
-- [ ] interact with snake + fire
+- [x] light fire mechanic? then snake shows up?
+- [x] interact with snake + fire
 - [ ] answer npc questions (they think you are sorcerer)
-- [ ] walk to boat
+- [x] walk to boat
 
 # Rome
 - [ ] crowd meets paul
@@ -19,4 +19,6 @@
 - [ ] coleseum glb model?
 - [ ] roman architecture models?
 - [ ] walk to house arrest
- 
+
+## Graphics
+- [ ] shaders

@@ -163,8 +163,11 @@ void LoadWorld(World *world, WorldId worldId) {
             AddPalmCluster(world, 0, 15, 80, 140, 370, 450);
             world->state.decos[20] = (Decoration){(Vector3Int){120, 0, 410}, DECO_ROCK};
             world->state.decos[21] = (Decoration){(Vector3Int){100, 0, 420}, DECO_ROCK};
-            world->state.decos[22] = (Decoration){(Vector3Int){109, 0, 418}, DECO_FIRE_PIT};
-            world->state.decos[23] = (Decoration){(Vector3Int){109, 0, 418}, DECO_SNAKE};
+            world->state.decos[22] = (Decoration){(Vector3Int){109, 0, 418}, DECO_FIRE_PIT_UNLIT};
+            // Snake hidden initially (will appear when fire is lit)
+            world->state.decos[23] = (Decoration){(Vector3Int){109, 0, 418}, DECO_NONE};
+            world->state.npcs[0] = (NPC){(Vector3Int){112, 0, 420}, "Islander", true};
+            world->state.npcs[1] = (NPC){(Vector3Int){106, 0, 415}, "Islander", true};
             world->state.ports[0] = (Port){(Vector3Int){109, 0, 430}, "Malta", 0, true};
             world->state.portCount = 1;
             world->state.snakePos = (Vector3Int){109, 0, 418};
@@ -331,6 +334,17 @@ void DrawWorld(World *world, Camera3D camera) {
                            0.12f + smokeRise * 0.12f, Fade(GRAY, 0.25f));
             }
                 break;
+            case DECO_FIRE_PIT_UNLIT:
+            {
+                // Draw three logs angled like a teepee
+                // Log 1
+                DrawCylinderEx((Vector3){pos.x - 0.3f, 0.1f, pos.z}, (Vector3){pos.x, 0.8f, pos.z}, 0.15f, 0.05f, 8, BROWN);
+                // Log 2
+                DrawCylinderEx((Vector3){pos.x + 0.3f, 0.1f, pos.z}, (Vector3){pos.x, 0.8f, pos.z}, 0.15f, 0.05f, 8, BROWN);
+                // Log 3
+                DrawCylinderEx((Vector3){pos.x, 0.1f, pos.z - 0.3f}, (Vector3){pos.x, 0.8f, pos.z}, 0.15f, 0.05f, 8, BROWN);
+            }
+                break;
             case DECO_SNAKE:
             {
                 float t = (float)GetTime();
@@ -449,6 +463,20 @@ int GetClickedNPC(World *world, Ray ray) {
         if (!world->state.npcs[i].active) continue;
         BoundingBox box = {(Vector3){(float)world->state.npcs[i].position.x - 0.4f, 0, (float)world->state.npcs[i].position.z - 0.4f},
                            (Vector3){(float)world->state.npcs[i].position.x + 0.4f, 1.2f, (float)world->state.npcs[i].position.z + 0.4f}};
+        if (GetRayCollisionBox(ray, box).hit) return i;
+    }
+    return -1;
+}
+
+int GetClickedDecoration(World *world, Ray ray) {
+    for (int i = 0; i < MAX_DECORATIONS; i++) {
+        if (world->state.decos[i].type == DECO_NONE) continue;
+        Vector3 pos = {(float)world->state.decos[i].position.x, 0, (float)world->state.decos[i].position.z};
+        // Generic box for interaction (mostly for Fire Pit and Snake)
+        BoundingBox box = {
+            (Vector3){pos.x - 0.6f, 0, pos.z - 0.6f},
+            (Vector3){pos.x + 0.6f, 1.0f, pos.z + 0.6f}
+        };
         if (GetRayCollisionBox(ray, box).hit) return i;
     }
     return -1;

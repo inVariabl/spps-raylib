@@ -95,6 +95,7 @@ void LoadWorld(World *world, WorldId worldId);
 void UpdateWorld(World *world, Player *player);
 void DrawWorld(World *world, Camera3D camera);
 int GetClickedItem(World *world, Ray ray);
+int GetClickedDecoration(World *world, Ray ray);
 int GetClickedNPC(World *world, Ray ray);
 bool IsTileBlocked(World *world, Vector3Int pos);
 bool IsWaterTile(World *world, Vector3Int pos);

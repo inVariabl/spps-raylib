@@ -67,11 +67,34 @@ int main() {
     CombatSession combat = {0};
 
     bool isFirstPerson = false;
+    
+    char message[256] = {0};
+    float messageTimer = 0.0f;
+    float snakeEventTimer = 0.0f;
 
     SetTargetFPS(60);
 
     // --- Main Loop ---
     while (!WindowShouldClose()) {
+        if (messageTimer > 0) messageTimer -= GetFrameTime();
+        
+        if (snakeEventTimer > 0) {
+            snakeEventTimer -= GetFrameTime();
+            if (snakeEventTimer <= 0) {
+                if (player.questStates[3] == QUEST_ACTIVE) {
+                    player.questStates[3] = QUEST_COMPLETED;
+                    // Remove snake
+                    for(int i=0; i<MAX_DECORATIONS; i++) {
+                         if(world.state.decos[i].type == DECO_SNAKE) {
+                             world.state.decos[i].type = DECO_NONE;
+                         }
+                    }
+                    snprintf(message, sizeof(message), "You shake off the creature into the fire and suffer no harm.");
+                    messageTimer = 5.0f;
+                }
+            }
+        }
+
         // Handle perspective switching
         if (IsKeyPressed(KEY_F1)) {
             isFirstPerson = true;
@@ -138,15 +161,47 @@ int main() {
                         player.activeQuestId = 2;
                         player.questStates[2] = QUEST_ACTIVE;
                     }
+                } else if (TextIsEqual(npcName, "Islander")) {
+                    if (player.questStates[3] == QUEST_COMPLETED) {
+                        snprintf(message, sizeof(message), "Islander: 'He must be a god! He suffered no harm!'");
+                    } else {
+                         snprintf(message, sizeof(message), "Islander: 'No doubt this man is a murderer, for justice has not allowed him to live.'");
+                    }
+                    messageTimer = 5.0f;
                 } else {
                     StartCombat(&combat, npcName);
                 }
             } else {
                 // Check Ground Item
                 int itemIdx = GetClickedItem(&world, ray);
+                int decoIdx = GetClickedDecoration(&world, ray);
+                
                 if (itemIdx != -1) {
                     if (AddToInventory(&player, world.state.items[itemIdx].itemId)) {
                         world.state.items[itemIdx].active = false;
+                    }
+                } else if (decoIdx != -1) {
+                    if (world.state.decos[decoIdx].type == DECO_FIRE_PIT_UNLIT) { // Changed from DECO_FIRE_PIT
+                        if (player.questStates[3] == QUEST_NOT_STARTED) {
+                            player.questStates[3] = QUEST_ACTIVE;
+                            // Change fire pit to lit state
+                            world.state.decos[decoIdx].type = DECO_FIRE_PIT;
+                            // Reveal snake
+                            for(int i=0; i<MAX_DECORATIONS; i++) {
+                                if(world.state.decos[i].position.x == world.state.snakePos.x && 
+                                   world.state.decos[i].position.z == world.state.snakePos.z &&
+                                   world.state.decos[i].type == DECO_NONE) {
+                                    world.state.decos[i].type = DECO_SNAKE;
+                                    break;
+                                }
+                            }
+                            snprintf(message, sizeof(message), "A viper fastens on your hand! The islanders watch closely...");
+                            messageTimer = 5.0f;
+                            snakeEventTimer = 8.0f;
+                        } else {
+                             snprintf(message, sizeof(message), "The fire burns warmly.");
+                             messageTimer = 3.0f;
+                        }
                     }
                 } else {
                     // Otherwise move player to grid clicked
@@ -165,7 +220,12 @@ int main() {
         } else {
             int portIdx = GetPortAt(&world, player.position);
             if (portIdx != -1 && IsKeyPressed(KEY_T)) {
-                HandlePortTravel(&player, &world, portIdx);
+                if (world.state.worldId == WORLD_MALTA && player.questStates[3] != QUEST_COMPLETED) {
+                    snprintf(message, sizeof(message), "Captain: 'We must wait for the winter storms to pass.'");
+                    messageTimer = 4.0f;
+                } else {
+                    HandlePortTravel(&player, &world, portIdx);
+                }
             }
 
             if (!player.gameComplete) {
@@ -216,6 +276,11 @@ int main() {
         DrawHUD(&player, &world, isFirstPerson);
 
         if (combat.active) DrawCombatUI(&combat, GetScreenWidth(), GetScreenHeight());
+        
+        if (messageTimer > 0) {
+            DrawRectangle(0, GetScreenHeight() - 100, GetScreenWidth(), 40, Fade(BLACK, 0.7f));
+            DrawText(message, 20, GetScreenHeight() - 90, 20, WHITE);
+        }
 
         DrawText("Point & Click to move across the Mediterranean", 10, GetScreenHeight() - 45, 15, WHITE);
         DrawFPS(10, GetScreenHeight() - 25);

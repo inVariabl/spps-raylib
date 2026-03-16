@@ -78,6 +78,7 @@ typedef enum {
     DECO_COLUMN,
     DECO_FORUM_ARCH,
     DECO_FIRE_PIT,
+    DECO_FIRE_PIT_UNLIT,
     DECO_SNAKE,
     DECO_MARKET,
     DECO_COUNT
