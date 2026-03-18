@@ -76,7 +76,7 @@ void DrawHUD(Player *player, World *world, bool isFirstPerson) {
     sprintf(buf, "X: %d, Z: %d", player->position.x, player->position.z);
     DrawText(buf, 15, 60, 20, WHITE);
 
-    // --- NAVIGATION COMPASS ---
+    // ---NAVIGATION COMPASS ---
     if (player->showMap) {
         int compassW = 400;
         int compassX = GetScreenWidth()/2 - compassW/2;
@@ -203,5 +203,89 @@ void DrawHUD(Player *player, World *world, bool isFirstPerson) {
         DrawText(TextSubtext(questDatabase[qId].description, 0, 30), questStartX + 10, questStartY + 55, 10, GRAY);
     } else {
         DrawText("No active mission.", questStartX + 10, questStartY + 40, 12, GRAY);
+    }
+}
+
+static float DrawSimpleSlider(Rectangle rect, const char *text, float value, float min, float max) {
+    // Background track
+    DrawRectangleRec(rect, Fade(BLACK, 0.5f));
+    DrawRectangleLinesEx(rect, 1, WHITE);
+    
+    // Calculate knob position
+    float range = max - min;
+    float normalized = (value - min) / range;
+    float knobX = rect.x + (normalized * (rect.width - 16));
+    Rectangle knob = { knobX, rect.y + 2, 16, rect.height - 4 };
+    
+    // Handle Input
+    if (CheckCollisionPointRec(GetMousePosition(), rect) && IsMouseButtonDown(MOUSE_BUTTON_LEFT)) {
+        float mouseX = GetMousePosition().x;
+        float newNormalized = (mouseX - rect.x - 8) / (rect.width - 16);
+        if (newNormalized < 0.0f) newNormalized = 0.0f;
+        if (newNormalized > 1.0f) newNormalized = 1.0f;
+        value = min + (newNormalized * range);
+    }
+    
+    // Draw Knob
+    DrawRectangleRec(knob, RED);
+    
+    // Draw Label
+    DrawText(TextFormat("%s: %.2f", text, value), rect.x + rect.width + 10, rect.y + 2, 10, WHITE);
+    
+    return value;
+}
+
+void DrawShaderDebugUI(ShaderSettings *settings) {
+    if (!settings->showDebugUI) return;
+
+    int w = 350;
+    int h = 400;
+    int x = GetScreenWidth() - w - 20;
+    int y = 50;
+    
+    DrawRectangle(x, y, w, h, Fade(DARKBLUE, 0.9f));
+    DrawRectangleLines(x, y, w, h, WHITE);
+    DrawText("SHADER SETTINGS", x + 10, y + 10, 20, WHITE);
+    
+    int startY = y + 50;
+    int spacing = 30;
+    
+    // Light Direction
+    settings->lightDir.x = DrawSimpleSlider((Rectangle){(float)x + 20, (float)startY, 200, 20}, "Light X", settings->lightDir.x, -1.0f, 1.0f);
+    settings->lightDir.y = DrawSimpleSlider((Rectangle){(float)x + 20, (float)startY + spacing, 200, 20}, "Light Y", settings->lightDir.y, -1.0f, 1.0f);
+    settings->lightDir.z = DrawSimpleSlider((Rectangle){(float)x + 20, (float)startY + spacing*2, 200, 20}, "Light Z", settings->lightDir.z, -1.0f, 1.0f);
+    
+    // Ambient
+    settings->ambient = DrawSimpleSlider((Rectangle){(float)x + 20, (float)startY + spacing*3, 200, 20}, "Ambient", settings->ambient, 0.0f, 1.0f);
+    
+    // Shadow Bias
+    settings->shadowBias = DrawSimpleSlider((Rectangle){(float)x + 20, (float)startY + spacing*4, 200, 20}, "Bias", settings->shadowBias, 0.0001f, 0.01f);
+    
+    // Color (R, G, B)
+    float r = (float)settings->lightColor.r / 255.0f;
+    float g = (float)settings->lightColor.g / 255.0f;
+    float b = (float)settings->lightColor.b / 255.0f;
+    
+    r = DrawSimpleSlider((Rectangle){(float)x + 20, (float)startY + spacing*5, 200, 20}, "Color R", r, 0.0f, 1.0f);
+    g = DrawSimpleSlider((Rectangle){(float)x + 20, (float)startY + spacing*6, 200, 20}, "Color G", g, 0.0f, 1.0f);
+    b = DrawSimpleSlider((Rectangle){(float)x + 20, (float)startY + spacing*7, 200, 20}, "Color B", b, 0.0f, 1.0f);
+    
+    settings->lightColor = (Color){ (unsigned char)(r*255), (unsigned char)(g*255), (unsigned char)(b*255), 255 };
+
+    // Save Button
+    Rectangle saveBtn = { (float)x + 20, (float)startY + spacing*9, 100, 30 };
+    bool hovered = CheckCollisionPointRec(GetMousePosition(), saveBtn);
+    DrawRectangleRec(saveBtn, hovered ? GREEN : DARKGRAY);
+    DrawText("SAVE", saveBtn.x + 30, saveBtn.y + 8, 10, WHITE);
+    
+    if (hovered && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+        FILE *f = fopen("shader_settings.txt", "w");
+        if (f) {
+            fprintf(f, "%f %f %f\n", settings->lightDir.x, settings->lightDir.y, settings->lightDir.z);
+            fprintf(f, "%d %d %d\n", settings->lightColor.r, settings->lightColor.g, settings->lightColor.b);
+            fprintf(f, "%f\n", settings->ambient);
+            fprintf(f, "%f\n", settings->shadowBias);
+            fclose(f);
+        }
     }
 }

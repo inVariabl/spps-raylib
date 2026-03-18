@@ -21,4 +21,4 @@
 - [ ] walk to house arrest
 
 ## Graphics
-- [ ] shaders
+- [ ] press <F2> to turn on / off shaders. on by default

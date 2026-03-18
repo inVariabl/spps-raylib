@@ -1,5 +1,6 @@
 #include "raylib.h"
 #include "raymath.h"
+#include "rlgl.h"
 #include "player.h"
 #include "world.h"
 #include "ui.h"
@@ -43,34 +44,84 @@ void LoadSprites() {
 }
 
 int main() {
-    // 1. Initialization
     const int screenWidth = 1280;
     const int screenHeight = 720;
+
+    Camera3D camera = {0};
+    Player player = {0};
+    World world = {0};
+    CombatSession combat = {0};
+
+    bool isFirstPerson = false;
+    bool shadersEnabled = true; // Shadows on by default
+    
+    // Shadow Mapping Resources
+    Shader shadowShader = {0};
+    Shader depthShader = {0};
+    RenderTexture2D shadowMap = {0};
+    const int SHADOW_MAP_SIZE = 1024;
+    
+    // Shader Settings
+    ShaderSettings settings = {
+        .lightDir = Vector3Normalize((Vector3){0.1f, 1.0f, 0.1f}),
+        .lightColor = WHITE,
+        .ambient = 0.6f,
+        .shadowBias = 0.005f,
+        .showDebugUI = false
+    };
+
+    // Load settings if exist
+    FILE *f = fopen("shader_settings.txt", "r");
+    if (f) {
+        int r, g, b;
+        fscanf(f, "%f %f %f", &settings.lightDir.x, &settings.lightDir.y, &settings.lightDir.z);
+        fscanf(f, "%d %d %d", &r, &g, &b);
+        settings.lightColor = (Color){(unsigned char)r, (unsigned char)g, (unsigned char)b, 255};
+        fscanf(f, "%f", &settings.ambient);
+        fscanf(f, "%f", &settings.shadowBias);
+        fclose(f);
+    }
+    
+    char message[256] = {0};
+    float messageTimer = 0.0f;
+    float snakeEventTimer = 0.0f;
+
+    // 2. Initialization
     InitWindow(screenWidth, screenHeight, "RayScape - Paul's Journeys");
     LoadSprites();
 
+    // Initialize Shaders and Shadow Map
+    shadowShader = LoadShader("shaders/shadow.vs", "shaders/shadow.fs");
+    depthShader = LoadShader("shaders/depth.vs", "shaders/depth.fs");
+    shadowMap = LoadRenderTexture(SHADOW_MAP_SIZE, SHADOW_MAP_SIZE);
+
+    // Set shadow map texture slot
+    int shadowMapLoc = GetShaderLocation(shadowShader, "shadowMap");
+    // We will set this manually in the loop just to be safe, but usually texture1
+
+    // Get uniform locations
+    shadowShader.locs[SHADER_LOC_VECTOR_VIEW] = GetShaderLocation(shadowShader, "viewPos");
+    int lightDirLoc = GetShaderLocation(shadowShader, "lightDir");
+    int lightColorLoc = GetShaderLocation(shadowShader, "lightColor");
+    int ambientLoc = GetShaderLocation(shadowShader, "ambient");
+    int shadowBiasLoc = GetShaderLocation(shadowShader, "shadowBias");
+    int lightVPLoc = GetShaderLocation(shadowShader, "lightVP");
+    int shadowMapSizeLoc = GetShaderLocation(shadowShader, "shadowMapSize");
+    
+    // Set constant uniforms (Initial values)
+    float smSize = (float)SHADOW_MAP_SIZE;
+    SetShaderValue(shadowShader, shadowMapSizeLoc, &smSize, SHADER_UNIFORM_FLOAT);
+
+    // Initialize remaining game state
+    InitPlayer(&player);
+    InitWorld(&world);
+
     // Fixed isometric-style Camera
-    Camera3D camera = {0};
     camera.position = (Vector3){8.0f, 8.0f, 8.0f};
     camera.target = (Vector3){0.0f, 0.0f, 0.0f};
     camera.up = (Vector3){0.0f, 1.0f, 0.0f};
     camera.fovy = 45.0f;
     camera.projection = CAMERA_PERSPECTIVE;
-
-    // Initialize State
-    Player player = {0};
-    InitPlayer(&player);
-
-    World world = {0};
-    InitWorld(&world);
-
-    CombatSession combat = {0};
-
-    bool isFirstPerson = false;
-    
-    char message[256] = {0};
-    float messageTimer = 0.0f;
-    float snakeEventTimer = 0.0f;
 
     SetTargetFPS(60);
 
@@ -100,9 +151,16 @@ int main() {
             isFirstPerson = true;
             DisableCursor();
         }
+        if (IsKeyPressed(KEY_F2)) {
+            shadersEnabled = !shadersEnabled;
+        }
         if (IsKeyPressed(KEY_F3)) {
             isFirstPerson = false;
             EnableCursor();
+        }
+        if (IsKeyPressed(KEY_F5)) {
+            settings.showDebugUI = !settings.showDebugUI;
+            if (settings.showDebugUI) EnableCursor();
         }
 
         // --- CAMERA UPDATE ---
@@ -132,7 +190,7 @@ int main() {
         }
 
         // 2. Logic: Interaction
-        if (!combat.active && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+        if (!settings.showDebugUI && !combat.active && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
             Ray ray;
             if (isFirstPerson) {
                 ray = GetMouseRay((Vector2){(float)GetScreenWidth()/2, (float)GetScreenHeight()/2}, camera);
@@ -248,29 +306,112 @@ int main() {
             }
         }
 
-        // 3. Rendering
+        // --- SHADOW MAPPING ---
+        // 1. Calculate Light View-Projection Matrix
+        Matrix lightView;
+        Matrix lightProj;
+        float shadowBoxSize = 60.0f; // Increased size
+        Vector3 lightPos = Vector3Scale(settings.lightDir, 40.0f); // Increased distance
+        Vector3 center = isFirstPerson ? player.lerpPosition : camera.target;
+        
+        // Ensure light follows the camera/player
+        Vector3 lightCamPos = Vector3Add(center, lightPos);
+        lightView = MatrixLookAt(lightCamPos, center, (Vector3){0, 1, 0});
+        lightProj = MatrixOrtho(-shadowBoxSize, shadowBoxSize, -shadowBoxSize, shadowBoxSize, 1.0f, 150.0f);
+        
+        // MVP = P * V * M. So VP = P * V.
+        Matrix lightVP = MatrixMultiply(lightView, lightProj); // Raylib's MatrixMultiply might behave as V * P effectively due to layout? 
+        // Actually, let's stick to standard P * V.
+        // Wait, if I use MatrixMultiply(lightView, lightProj), that is V * P.
+        // If the shader expects P * V * pos, I should use MatrixMultiply(lightProj, lightView).
+        // However, many Raylib examples use V * P order for some reason. 
+        // Let's try the standard P * V first.
+        lightVP = MatrixMultiply(lightView, lightProj); 
+        // Wait, I will use the one that matches Raylib's internal mvp calculation.
+        // Raylib uses: matModelView = matView * matModel; matModelViewProjection = matProjection * matModelView;
+        // So P * V * M.
+        // So I need P * V.
+        // So MatrixMultiply(lightProj, lightView).
+        lightVP = MatrixMultiply(lightView, lightProj); // I'll trust the previous code's order but fix the Projection mismatch first. 
+        // Actually, let's try swapping it because V*P is definitely wrong for MVP * pos.
+        lightVP = MatrixMultiply(lightProj, lightView); // Swapped to P * V
+
+        // 2. Render Depth Map (Pass 1)
+        if (shadersEnabled) {
+            BeginTextureMode(shadowMap);
+                ClearBackground(WHITE); // Far plane depth is 1.0 (White)
+                BeginMode3D((Camera3D){
+                    lightCamPos, center, {0, 1, 0}, 90.0f, CAMERA_ORTHOGRAPHIC // fovy placeholder
+                });
+                    // Force the exact projection matrix we calculated
+                    rlSetMatrixProjection(lightProj);
+                    
+                    BeginShaderMode(depthShader);
+                        rlDisableBackfaceCulling();
+                        DrawWorld(&world, (Camera3D){lightCamPos, center, {0,1,0}, 40.0f, CAMERA_ORTHOGRAPHIC});
+                        rlEnableBackfaceCulling();
+                    EndShaderMode();
+
+                EndMode3D();
+            EndTextureMode();
+        }
+
+        // 3. Render Scene with Shadows (Pass 2)
         BeginDrawing();
         ClearBackground(SKYBLUE);
 
         BeginMode3D(camera);
-        DrawWorld(&world, camera);
-        if (!isFirstPerson) DrawPlayer(&player, camera);
+            if (shadersEnabled) {
+                // Update shadow shader uniforms
+                SetShaderValueMatrix(shadowShader, lightVPLoc, lightVP);
+                SetShaderValue(shadowShader, shadowShader.locs[SHADER_LOC_VECTOR_VIEW], &camera.position, SHADER_UNIFORM_VEC3);
+                SetShaderValue(shadowShader, lightDirLoc, &settings.lightDir, SHADER_UNIFORM_VEC3);
+                
+                Vector3 lightColorVec = (Vector3){(float)settings.lightColor.r/255.0f, (float)settings.lightColor.g/255.0f, (float)settings.lightColor.b/255.0f};
+                SetShaderValue(shadowShader, lightColorLoc, &lightColorVec, SHADER_UNIFORM_VEC3);
+                SetShaderValue(shadowShader, ambientLoc, &settings.ambient, SHADER_UNIFORM_FLOAT);
+                SetShaderValue(shadowShader, shadowBiasLoc, &settings.shadowBias, SHADER_UNIFORM_FLOAT);
 
-        // Objective beacon at next port
-        if (world.state.portCount > 0 && world.state.nextWorldId != WORLD_NONE) {
-            Vector3Int p = world.state.ports[0].position;
-            Vector3 base = {(float)p.x, 0.0f, (float)p.z};
-            DrawCylinder(base, 0.35f, 0.35f, 2.0f, 8, Fade(YELLOW, 0.7f));
-            DrawSphere((Vector3){base.x, 2.2f, base.z}, 0.2f, YELLOW);
-        }
+                // Bind Shadow Map to texture slot 1 (slot 0 is diffuse texture)
+                // In Raylib shaders, we usually pass texture via uniform sampler.
+                // We can use the slot index.
+                // Set active texture slot to 1
+                rlActiveTextureSlot(1);
+                rlEnableTexture(shadowMap.texture.id);
+                rlActiveTextureSlot(0); // Back to default
 
-        // Destination Marker
-        if (!combat.active && Vector3Distance(player.lerpPosition, (Vector3){(float)player.target.x, (float)player.target.y, (float)player.target.z}) > 0.1f) {
-            DrawCircle3D((Vector3){(float)player.target.x, 0.01f, (float)player.target.z}, 0.5f, (Vector3){1, 0, 0}, 90.0f, Fade(YELLOW, 0.5f));
-        }
+                // Tell shader that "shadowMap" sampler uses texture unit 1
+                int slot = 1;
+                SetShaderValue(shadowShader, shadowMapLoc, &slot, SHADER_UNIFORM_INT);
+
+                BeginShaderMode(shadowShader);
+            }
+
+            DrawWorld(&world, camera);
+            if (!isFirstPerson) DrawPlayer(&player, camera);
+
+            if (shadersEnabled) {
+                EndShaderMode();
+                rlActiveTextureSlot(1);
+                rlDisableTexture(); // Unbind
+                rlActiveTextureSlot(0);
+            }
+
+            // Objective beacon at next port
+            if (world.state.portCount > 0 && world.state.nextWorldId != WORLD_NONE) {
+                Vector3Int p = world.state.ports[0].position;
+                Vector3 base = {(float)p.x, 0.0f, (float)p.z};
+                DrawCylinder(base, 0.35f, 0.35f, 2.0f, 8, Fade(YELLOW, 0.7f));
+                DrawSphere((Vector3){base.x, 2.2f, base.z}, 0.2f, YELLOW);
+            }
+
+            // Destination Marker
+            if (!combat.active && Vector3Distance(player.lerpPosition, (Vector3){(float)player.target.x, (float)player.target.y, (float)player.target.z}) > 0.1f) {
+                DrawCircle3D((Vector3){(float)player.target.x, 0.01f, (float)player.target.z}, 0.5f, (Vector3){1, 0, 0}, 90.0f, Fade(YELLOW, 0.5f));
+            }
         EndMode3D();
 
-        // UI Layer
+        // UI Layer - drawn directly to screen
         DrawInventory(&player);
         DrawSkills(&player);
         DrawHUD(&player, &world, isFirstPerson);
@@ -284,10 +425,15 @@ int main() {
 
         DrawText("Point & Click to move across the Mediterranean", 10, GetScreenHeight() - 45, 15, WHITE);
         DrawFPS(10, GetScreenHeight() - 25);
+        
+        DrawShaderDebugUI(&settings);
 
         EndDrawing();
     }
 
     CloseWindow();
+    UnloadShader(shadowShader);
+    UnloadShader(depthShader);
+    UnloadRenderTexture(shadowMap);
     return 0;
 }

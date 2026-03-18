@@ -93,6 +93,14 @@ typedef enum {
 
 extern Texture2D spriteDatabase[SPRITE_COUNT];
 
+typedef struct {
+    Vector3 lightDir;
+    Color lightColor;
+    float ambient;
+    float shadowBias;
+    bool showDebugUI;
+} ShaderSettings;
+
 // --- Global Constants ---
 static const ItemData itemDatabase[] = {
     {0, "Empty", BLANK},

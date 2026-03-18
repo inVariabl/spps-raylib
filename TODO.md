@@ -27,4 +27,4 @@
   - Captain/Message warns against sailing until winter passes (event complete).
 
 ## Refactoring
-- [ ] Move interaction logic to `UpdateWorld` or a dedicated `Interact` function to keep `main.c` clean (Optional/Future).
+- [x] Move interaction logic to `UpdateWorld` or a dedicated `Interact` function to keep `main.c` clean (Optional/Future).
