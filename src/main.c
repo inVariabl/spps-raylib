@@ -311,7 +311,11 @@ int main() {
         Matrix lightView;
         Matrix lightProj;
         float shadowBoxSize = 60.0f; // Increased size
-        Vector3 lightPos = Vector3Scale(settings.lightDir, 40.0f); // Increased distance
+        Vector3 lightDir = settings.lightDir;
+        if (Vector3LengthSqr(lightDir) < 0.0001f) lightDir = (Vector3){0.1f, 1.0f, 0.1f};
+        lightDir = Vector3Normalize(lightDir);
+        float lightDistance = 40.0f;
+        Vector3 lightPos = Vector3Scale(lightDir, lightDistance);
         Vector3 center = isFirstPerson ? player.lerpPosition : camera.target;
         
         // Ensure light follows the camera/player
@@ -365,7 +369,7 @@ int main() {
                 // Update shadow shader uniforms
                 SetShaderValueMatrix(shadowShader, lightVPLoc, lightVP);
                 SetShaderValue(shadowShader, shadowShader.locs[SHADER_LOC_VECTOR_VIEW], &camera.position, SHADER_UNIFORM_VEC3);
-                SetShaderValue(shadowShader, lightDirLoc, &settings.lightDir, SHADER_UNIFORM_VEC3);
+                SetShaderValue(shadowShader, lightDirLoc, &lightDir, SHADER_UNIFORM_VEC3);
                 
                 Vector3 lightColorVec = (Vector3){(float)settings.lightColor.r/255.0f, (float)settings.lightColor.g/255.0f, (float)settings.lightColor.b/255.0f};
                 SetShaderValue(shadowShader, lightColorLoc, &lightColorVec, SHADER_UNIFORM_VEC3);

@@ -9,5 +9,6 @@ out vec4 finalColor;
 void main()
 {
     gl_FragDepth = gl_FragCoord.z;
-    finalColor = vec4(1.0);
+    float depth = gl_FragCoord.z;
+    finalColor = vec4(depth, depth, depth, 1.0);
 }

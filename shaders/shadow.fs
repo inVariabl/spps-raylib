@@ -24,32 +24,40 @@ uniform float shadowBias;
 void main()
 {
     vec4 texelColor = texture(texture0, fragTexCoord);
-    vec3 lightDot = vec3(clamp(dot(fragNormal, lightDir), 0.0, 1.0));
     vec3 normal = normalize(fragNormal);
+    vec3 lightVector = normalize(lightDir);
+    float lambert = clamp(dot(normal, lightVector), 0.0, 1.0);
 
     // Shadow calculation
     vec3 projCoords = fragPosLight.xyz / fragPosLight.w;
     projCoords = projCoords * 0.5 + 0.5;
+    projCoords.y = 1.0 - projCoords.y;
 
     float shadow = 0.0;
-    float bias = max(shadowBias * (1.0 - dot(normal, lightDir)), 0.0005);
+    float bias = max(shadowBias * (1.0 - lambert), 0.0005);
 
-    vec2 texelSize = 1.0 / textureSize(shadowMap, 0);
-    for(int x = -1; x <= 1; ++x)
+    bool insideShadowMap = projCoords.x >= 0.0 && projCoords.x <= 1.0 &&
+                           projCoords.y >= 0.0 && projCoords.y <= 1.0 &&
+                           projCoords.z >= 0.0 && projCoords.z <= 1.0;
+
+    if (insideShadowMap)
     {
-        for(int y = -1; y <= 1; ++y)
+        vec2 texelSize = 1.0 / textureSize(shadowMap, 0);
+        for (int x = -1; x <= 1; ++x)
         {
-            float pcfDepth = texture(shadowMap, projCoords.xy + vec2(x, y) * texelSize).r; 
-            shadow += projCoords.z - bias > pcfDepth ? 1.0 : 0.0;        
-        }    
+            for (int y = -1; y <= 1; ++y)
+            {
+                vec2 sampleUv = clamp(projCoords.xy + vec2(x, y) * texelSize, 0.0, 1.0);
+                float pcfDepth = texture(shadowMap, sampleUv).r;
+                shadow += projCoords.z - bias > pcfDepth ? 1.0 : 0.0;
+            }
+        }
+        shadow /= 9.0;
     }
-    shadow /= 9.0;
-
-    // Keep the shadow at 0.0 when outside the far_plane region of the light's frustum.
-    if(projCoords.z > 1.0) shadow = 0.0;
 
     vec3 ambientColor = vec3(ambient);
-    vec3 diffuse = lightColor * lightDot * (1.0 - shadow);
+    vec3 diffuse = lightColor * lambert;
+    float visibility = 1.0 - shadow * 0.65;
 
-    finalColor = texelColor * fragColor * colDiffuse * vec4(ambientColor + diffuse, 1.0);
+    finalColor = texelColor * fragColor * colDiffuse * vec4((ambientColor + diffuse) * visibility, 1.0);
 }
