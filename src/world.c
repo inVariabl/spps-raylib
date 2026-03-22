@@ -269,7 +269,7 @@ void LoadWorld(World *world, WorldId worldId) {
             world->state.waterCount = 1;
             world->state.ports[0] = (Port){(Vector3Int){80, 0, 20}, "Sidon", 0, true};
             world->state.portCount = 1;
-            world->state.decos[30] = (Decoration){(Vector3Int){88, 0, 16}, DECO_SHIP};
+            world->state.decos[30] = (Decoration){(Vector3Int){96, 0, 12}, DECO_SHIP};
             world->state.juliusPos = (Vector3Int){78, 0, 22};
             world->state.hasJulius = true;
             break;
@@ -442,9 +442,18 @@ void DrawWorld(World *world, Camera3D camera, bool drawShadows) {
                 }
                 break;
             case DECO_SHIP:
-                DrawCube((Vector3){pos.x, 0.4f, pos.z}, 6.0f, 0.8f, 2.0f, BROWN); // Hull
-                DrawCylinder((Vector3){pos.x, 1.6f, pos.z}, 0.15f, 0.15f, 2.8f, 6, DARKBROWN); // Mast
-                DrawCube((Vector3){pos.x + 0.8f, 2.4f, pos.z}, 2.5f, 1.2f, 0.1f, BEIGE); // Sail
+                if (boatModelLoaded) {
+                    DrawModelEx(boatModel,
+                                Vector3Add(pos, boatModelOffset),
+                                (Vector3){0.0f, 1.0f, 0.0f},
+                                90.0f,
+                                boatModelScale,
+                                WHITE);
+                } else {
+                    DrawCube((Vector3){pos.x, 0.4f, pos.z}, 6.0f, 0.8f, 2.0f, BROWN); // Hull
+                    DrawCylinder((Vector3){pos.x, 1.6f, pos.z}, 0.15f, 0.15f, 2.8f, 6, DARKBROWN); // Mast
+                    DrawCube((Vector3){pos.x + 0.8f, 2.4f, pos.z}, 2.5f, 1.2f, 0.1f, BEIGE); // Sail
+                }
                 break;
             case DECO_COLUMN:
                 if (columnModelLoaded) {
@@ -563,6 +572,20 @@ void DrawWorld(World *world, Camera3D camera, bool drawShadows) {
                             (Vector3){0.0f, 1.0f, 0.0f},
                             180.0f,
                             sadduceeModelScale,
+                            WHITE);
+                continue;
+            }
+            if (TextIsEqual(world->state.npcs[i].name, "Islander") && islanderModelLoaded) {
+                Vector3 pos = {
+                    (float)world->state.npcs[i].position.x,
+                    0.0f,
+                    (float)world->state.npcs[i].position.z
+                };
+                DrawModelEx(islanderModel,
+                            Vector3Add(pos, islanderModelOffset),
+                            (Vector3){0.0f, 1.0f, 0.0f},
+                            180.0f,
+                            islanderModelScale,
                             WHITE);
                 continue;
             }

@@ -30,6 +30,14 @@ Model sadduceeModel = {0};
 bool sadduceeModelLoaded = false;
 Vector3 sadduceeModelScale = {1.0f, 1.0f, 1.0f};
 Vector3 sadduceeModelOffset = {0};
+Model boatModel = {0};
+bool boatModelLoaded = false;
+Vector3 boatModelScale = {1.0f, 1.0f, 1.0f};
+Vector3 boatModelOffset = {0};
+Model islanderModel = {0};
+bool islanderModelLoaded = false;
+Vector3 islanderModelScale = {1.0f, 1.0f, 1.0f};
+Vector3 islanderModelOffset = {0};
 
 static void LoadModels(void) {
     if (FileExists("assets/snake.glb")) {
@@ -159,6 +167,57 @@ static void LoadModels(void) {
             -((bounds.min.z + bounds.max.z) * 0.5f) * scale
         };
     }
+
+    if (FileExists("assets/viking_boat.glb")) {
+        boatModel = LoadModel("assets/viking_boat.glb");
+        boatModelLoaded = boatModel.meshCount > 0;
+    }
+
+    if (boatModelLoaded) {
+        BoundingBox bounds = GetModelBoundingBox(boatModel);
+        float sizeX = bounds.max.x - bounds.min.x;
+        float sizeY = bounds.max.y - bounds.min.y;
+        float sizeZ = bounds.max.z - bounds.min.z;
+        if (sizeX < 0.001f) sizeX = 1.0f;
+        if (sizeY < 0.001f) sizeY = 1.0f;
+        if (sizeZ < 0.001f) sizeZ = 1.0f;
+
+        float scaleX = 32.5f / sizeX;
+        float scaleY = 16.0f / sizeY;
+        float scaleZ = 15.0f / sizeZ;
+        float scale = fminf(scaleX, fminf(scaleY, scaleZ));
+        boatModelScale = (Vector3){scale, scale, scale};
+        boatModelOffset = (Vector3){
+            -((bounds.min.x + bounds.max.x) * 0.5f) * scale,
+            -(bounds.min.y * scale),
+            -((bounds.min.z + bounds.max.z) * 0.5f) * scale
+        };
+    }
+
+    if (FileExists("assets/al_capone.glb")) {
+        islanderModel = LoadModel("assets/al_capone.glb");
+        islanderModelLoaded = islanderModel.meshCount > 0;
+    }
+
+    if (islanderModelLoaded) {
+        BoundingBox bounds = GetModelBoundingBox(islanderModel);
+        float sizeX = bounds.max.x - bounds.min.x;
+        float sizeY = bounds.max.y - bounds.min.y;
+        float sizeZ = bounds.max.z - bounds.min.z;
+        float maxXZ = fmaxf(sizeX, sizeZ);
+        if (sizeY < 0.001f) sizeY = 1.0f;
+        if (maxXZ < 0.001f) maxXZ = 1.0f;
+
+        float scaleY = 1.9f / sizeY;
+        float scaleXZ = 1.4f / maxXZ;
+        float scale = fminf(scaleY, scaleXZ);
+        islanderModelScale = (Vector3){scale, scale, scale};
+        islanderModelOffset = (Vector3){
+            -((bounds.min.x + bounds.max.x) * 0.5f) * scale,
+            -(bounds.min.y * scale),
+            -((bounds.min.z + bounds.max.z) * 0.5f) * scale
+        };
+    }
 }
 
 static void UnloadModels(void) {
@@ -181,6 +240,14 @@ static void UnloadModels(void) {
     if (sadduceeModelLoaded) {
         UnloadModel(sadduceeModel);
         sadduceeModelLoaded = false;
+    }
+    if (boatModelLoaded) {
+        UnloadModel(boatModel);
+        boatModelLoaded = false;
+    }
+    if (islanderModelLoaded) {
+        UnloadModel(islanderModel);
+        islanderModelLoaded = false;
     }
 }
 

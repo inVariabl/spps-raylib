@@ -113,6 +113,14 @@ extern Model sadduceeModel;
 extern bool sadduceeModelLoaded;
 extern Vector3 sadduceeModelScale;
 extern Vector3 sadduceeModelOffset;
+extern Model boatModel;
+extern bool boatModelLoaded;
+extern Vector3 boatModelScale;
+extern Vector3 boatModelOffset;
+extern Model islanderModel;
+extern bool islanderModelLoaded;
+extern Vector3 islanderModelScale;
+extern Vector3 islanderModelOffset;
 
 typedef struct {
     Vector3 lightDir;
