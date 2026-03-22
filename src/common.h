@@ -97,6 +97,22 @@ extern Model snakeModel;
 extern bool snakeModelLoaded;
 extern Vector3 snakeModelScale;
 extern Vector3 snakeModelOffset;
+extern Model columnModel;
+extern bool columnModelLoaded;
+extern Vector3 columnModelScale;
+extern Vector3 columnModelOffset;
+extern Model templeModel;
+extern bool templeModelLoaded;
+extern Vector3 templeModelScale;
+extern Vector3 templeModelOffset;
+extern Model desertHouseModel;
+extern bool desertHouseModelLoaded;
+extern Vector3 desertHouseModelScale;
+extern Vector3 desertHouseModelOffset;
+extern Model sadduceeModel;
+extern bool sadduceeModelLoaded;
+extern Vector3 sadduceeModelScale;
+extern Vector3 sadduceeModelOffset;
 
 typedef struct {
     Vector3 lightDir;

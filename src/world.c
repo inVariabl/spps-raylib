@@ -404,8 +404,20 @@ void DrawWorld(World *world, Camera3D camera, bool drawShadows) {
                 DrawCube(pos, 1.2f, 0.8f, 1.0f, DARKGRAY);
                 break;
             case DECO_HOUSE:
-                DrawCube((Vector3){pos.x, 1.5f, pos.z}, 4, 3, 4, LIGHTGRAY);
-                DrawCube((Vector3){pos.x, 3.1f, pos.z}, 4.2f, 0.2f, 4.2f, DARKGRAY); // Roof
+                if (desertHouseModelLoaded &&
+                    world->state.hasHouseArrest &&
+                    world->state.decos[i].position.x == world->state.houseArrestPos.x &&
+                    world->state.decos[i].position.z == world->state.houseArrestPos.z) {
+                    DrawModelEx(desertHouseModel,
+                                Vector3Add(pos, desertHouseModelOffset),
+                                (Vector3){0.0f, 1.0f, 0.0f},
+                                0.0f,
+                                desertHouseModelScale,
+                                WHITE);
+                } else {
+                    DrawCube((Vector3){pos.x, 1.5f, pos.z}, 4, 3, 4, LIGHTGRAY);
+                    DrawCube((Vector3){pos.x, 3.1f, pos.z}, 4.2f, 0.2f, 4.2f, DARKGRAY); // Roof
+                }
                 break;
             case DECO_SYNAGOGUE:
                 DrawCube((Vector3){pos.x, 2.0f, pos.z}, 6, 4, 6, WHITE); // Main Hall
@@ -413,12 +425,21 @@ void DrawWorld(World *world, Camera3D camera, bool drawShadows) {
                 DrawCube((Vector3){pos.x, 2, pos.z + 3.1f}, 1.5f, 2.5f, 0.5f, BROWN); // Door
                 break;
             case DECO_TEMPLE:
-                DrawCube((Vector3){pos.x, 2.5f, pos.z}, 10, 5, 12, GOLD); // The Holy Place
-                // Pillared porch
-                for (int p = -4; p <= 4; p += 2) {
-                    DrawCylinder((Vector3){pos.x + p, 0, pos.z + 6.5f}, 0.3f, 0.3f, 5.0f, 6, WHITE);
+                if (templeModelLoaded) {
+                    DrawModelEx(templeModel,
+                                Vector3Add(pos, templeModelOffset),
+                                (Vector3){0.0f, 1.0f, 0.0f},
+                                0.0f,
+                                templeModelScale,
+                                WHITE);
+                } else {
+                    DrawCube((Vector3){pos.x, 2.5f, pos.z}, 10, 5, 12, GOLD); // The Holy Place
+                    // Pillared porch
+                    for (int p = -4; p <= 4; p += 2) {
+                        DrawCylinder((Vector3){pos.x + p, 0, pos.z + 6.5f}, 0.3f, 0.3f, 5.0f, 6, WHITE);
+                    }
+                    DrawCube((Vector3){pos.x, 5.5f, pos.z}, 11, 1, 14, WHITE); // Roof
                 }
-                DrawCube((Vector3){pos.x, 5.5f, pos.z}, 11, 1, 14, WHITE); // Roof
                 break;
             case DECO_SHIP:
                 DrawCube((Vector3){pos.x, 0.4f, pos.z}, 6.0f, 0.8f, 2.0f, BROWN); // Hull
@@ -426,8 +447,17 @@ void DrawWorld(World *world, Camera3D camera, bool drawShadows) {
                 DrawCube((Vector3){pos.x + 0.8f, 2.4f, pos.z}, 2.5f, 1.2f, 0.1f, BEIGE); // Sail
                 break;
             case DECO_COLUMN:
-                DrawCylinder((Vector3){pos.x, 0, pos.z}, 0.25f, 0.25f, 3.0f, 8, LIGHTGRAY);
-                DrawCube((Vector3){pos.x, 3.1f, pos.z}, 0.8f, 0.2f, 0.8f, WHITE);
+                if (columnModelLoaded) {
+                    DrawModelEx(columnModel,
+                                Vector3Add(pos, columnModelOffset),
+                                (Vector3){0.0f, 1.0f, 0.0f},
+                                0.0f,
+                                columnModelScale,
+                                WHITE);
+                } else {
+                    DrawCylinder((Vector3){pos.x, 0, pos.z}, 0.25f, 0.25f, 3.0f, 8, LIGHTGRAY);
+                    DrawCube((Vector3){pos.x, 3.1f, pos.z}, 0.8f, 0.2f, 0.8f, WHITE);
+                }
                 break;
             case DECO_FORUM_ARCH:
                 DrawCube((Vector3){pos.x, 1.0f, pos.z}, 4.0f, 2.0f, 1.0f, LIGHTGRAY);
@@ -522,6 +552,21 @@ void DrawWorld(World *world, Camera3D camera, bool drawShadows) {
     for (int i = 0; i < 20; i++) {
         if (!world->state.npcs[i].active) continue;
         if (Vector3Distance(camera.target, (Vector3){(float)world->state.npcs[i].position.x, 0, (float)world->state.npcs[i].position.z}) < RENDER_DISTANCE) {
+            if (TextIsEqual(world->state.npcs[i].name, "Sadducee") && sadduceeModelLoaded) {
+                Vector3 pos = {
+                    (float)world->state.npcs[i].position.x,
+                    0.0f,
+                    (float)world->state.npcs[i].position.z
+                };
+                DrawModelEx(sadduceeModel,
+                            Vector3Add(pos, sadduceeModelOffset),
+                            (Vector3){0.0f, 1.0f, 0.0f},
+                            180.0f,
+                            sadduceeModelScale,
+                            WHITE);
+                continue;
+            }
+
             Texture2D tex = spriteDatabase[SPRITE_PAUL];
             if (TextIsEqual(world->state.npcs[i].name, "Sadducee")) tex = spriteDatabase[SPRITE_SADDUCEE];
             else if (TextIsEqual(world->state.npcs[i].name, "Ananias")) tex = spriteDatabase[SPRITE_ANANIAS];

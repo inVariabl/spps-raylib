@@ -14,38 +14,173 @@ Model snakeModel = {0};
 bool snakeModelLoaded = false;
 Vector3 snakeModelScale = {1.0f, 1.0f, 1.0f};
 Vector3 snakeModelOffset = {0};
+Model columnModel = {0};
+bool columnModelLoaded = false;
+Vector3 columnModelScale = {1.0f, 1.0f, 1.0f};
+Vector3 columnModelOffset = {0};
+Model templeModel = {0};
+bool templeModelLoaded = false;
+Vector3 templeModelScale = {1.0f, 1.0f, 1.0f};
+Vector3 templeModelOffset = {0};
+Model desertHouseModel = {0};
+bool desertHouseModelLoaded = false;
+Vector3 desertHouseModelScale = {1.0f, 1.0f, 1.0f};
+Vector3 desertHouseModelOffset = {0};
+Model sadduceeModel = {0};
+bool sadduceeModelLoaded = false;
+Vector3 sadduceeModelScale = {1.0f, 1.0f, 1.0f};
+Vector3 sadduceeModelOffset = {0};
 
 static void LoadModels(void) {
-    if (!FileExists("assets/snake.glb")) return;
-
-    snakeModel = LoadModel("assets/snake.glb");
-    snakeModelLoaded = snakeModel.meshCount > 0;
-    if (!snakeModelLoaded) return;
-
-    for (int i = 0; i < snakeModel.materialCount; i++) {
-        snakeModel.materials[i].maps[MATERIAL_MAP_DIFFUSE].color = (Color){82, 128, 64, 255};
+    if (FileExists("assets/snake.glb")) {
+        snakeModel = LoadModel("assets/snake.glb");
+        snakeModelLoaded = snakeModel.meshCount > 0;
     }
 
-    BoundingBox bounds = GetModelBoundingBox(snakeModel);
-    float sizeX = bounds.max.x - bounds.min.x;
-    float sizeY = bounds.max.y - bounds.min.y;
-    float sizeZ = bounds.max.z - bounds.min.z;
-    float maxDim = fmaxf(sizeX, fmaxf(sizeY, sizeZ));
-    if (maxDim < 0.001f) maxDim = 1.0f;
+    if (snakeModelLoaded) {
+        for (int i = 0; i < snakeModel.materialCount; i++) {
+            snakeModel.materials[i].maps[MATERIAL_MAP_DIFFUSE].color = (Color){82, 128, 64, 255};
+        }
 
-    float scale = 1.2f / maxDim;
-    snakeModelScale = (Vector3){scale, scale, scale};
-    snakeModelOffset = (Vector3){
-        -((bounds.min.x + bounds.max.x) * 0.5f) * scale,
-        -(bounds.min.y * scale) + 0.02f,
-        -((bounds.min.z + bounds.max.z) * 0.5f) * scale
-    };
+        BoundingBox bounds = GetModelBoundingBox(snakeModel);
+        float sizeX = bounds.max.x - bounds.min.x;
+        float sizeY = bounds.max.y - bounds.min.y;
+        float sizeZ = bounds.max.z - bounds.min.z;
+        float maxDim = fmaxf(sizeX, fmaxf(sizeY, sizeZ));
+        if (maxDim < 0.001f) maxDim = 1.0f;
+
+        float scale = 1.2f / maxDim;
+        snakeModelScale = (Vector3){scale, scale, scale};
+        snakeModelOffset = (Vector3){
+            -((bounds.min.x + bounds.max.x) * 0.5f) * scale,
+            -(bounds.min.y * scale) + 0.02f,
+            -((bounds.min.z + bounds.max.z) * 0.5f) * scale
+        };
+    }
+
+    if (FileExists("assets/column.glb")) {
+        columnModel = LoadModel("assets/column.glb");
+        columnModelLoaded = columnModel.meshCount > 0;
+    }
+
+    if (columnModelLoaded) {
+        BoundingBox bounds = GetModelBoundingBox(columnModel);
+        float sizeX = bounds.max.x - bounds.min.x;
+        float sizeY = bounds.max.y - bounds.min.y;
+        float sizeZ = bounds.max.z - bounds.min.z;
+        float maxXZ = fmaxf(sizeX, sizeZ);
+        if (sizeY < 0.001f) sizeY = 1.0f;
+        if (maxXZ < 0.001f) maxXZ = 1.0f;
+
+        float scaleY = 3.0f / sizeY;
+        float scaleXZ = 0.6f / maxXZ;
+        float scale = fminf(scaleY, scaleXZ);
+        columnModelScale = (Vector3){scale, scale, scale};
+        columnModelOffset = (Vector3){
+            -((bounds.min.x + bounds.max.x) * 0.5f) * scale,
+            -(bounds.min.y * scale),
+            -((bounds.min.z + bounds.max.z) * 0.5f) * scale
+        };
+    }
+
+    if (FileExists("assets/roman_temple.glb")) {
+        templeModel = LoadModel("assets/roman_temple.glb");
+        templeModelLoaded = templeModel.meshCount > 0;
+    }
+
+    if (templeModelLoaded) {
+        BoundingBox bounds = GetModelBoundingBox(templeModel);
+        float sizeX = bounds.max.x - bounds.min.x;
+        float sizeY = bounds.max.y - bounds.min.y;
+        float sizeZ = bounds.max.z - bounds.min.z;
+        if (sizeX < 0.001f) sizeX = 1.0f;
+        if (sizeY < 0.001f) sizeY = 1.0f;
+        if (sizeZ < 0.001f) sizeZ = 1.0f;
+
+        float scaleX = 10.5f / sizeX;
+        float scaleY = 6.0f / sizeY;
+        float scaleZ = 12.5f / sizeZ;
+        float scale = fminf(scaleX, fminf(scaleY, scaleZ));
+        templeModelScale = (Vector3){scale, scale, scale};
+        templeModelOffset = (Vector3){
+            -((bounds.min.x + bounds.max.x) * 0.5f) * scale,
+            -(bounds.min.y * scale),
+            -((bounds.min.z + bounds.max.z) * 0.5f) * scale
+        };
+    }
+
+    if (FileExists("assets/desert_house.glb")) {
+        desertHouseModel = LoadModel("assets/desert_house.glb");
+        desertHouseModelLoaded = desertHouseModel.meshCount > 0;
+    }
+
+    if (desertHouseModelLoaded) {
+        BoundingBox bounds = GetModelBoundingBox(desertHouseModel);
+        float sizeX = bounds.max.x - bounds.min.x;
+        float sizeY = bounds.max.y - bounds.min.y;
+        float sizeZ = bounds.max.z - bounds.min.z;
+        if (sizeX < 0.001f) sizeX = 1.0f;
+        if (sizeY < 0.001f) sizeY = 1.0f;
+        if (sizeZ < 0.001f) sizeZ = 1.0f;
+
+        float scaleX = 16.8f / sizeX;
+        float scaleY = 13.6f / sizeY;
+        float scaleZ = 16.8f / sizeZ;
+        float scale = fminf(scaleX, fminf(scaleY, scaleZ));
+        desertHouseModelScale = (Vector3){scale, scale, scale};
+        desertHouseModelOffset = (Vector3){
+            -((bounds.min.x + bounds.max.x) * 0.5f) * scale,
+            -(bounds.min.y * scale),
+            -((bounds.min.z + bounds.max.z) * 0.5f) * scale
+        };
+    }
+
+    if (FileExists("assets/ancient_character.glb")) {
+        sadduceeModel = LoadModel("assets/ancient_character.glb");
+        sadduceeModelLoaded = sadduceeModel.meshCount > 0;
+    }
+
+    if (sadduceeModelLoaded) {
+        BoundingBox bounds = GetModelBoundingBox(sadduceeModel);
+        float sizeX = bounds.max.x - bounds.min.x;
+        float sizeY = bounds.max.y - bounds.min.y;
+        float sizeZ = bounds.max.z - bounds.min.z;
+        float maxXZ = fmaxf(sizeX, sizeZ);
+        if (sizeY < 0.001f) sizeY = 1.0f;
+        if (maxXZ < 0.001f) maxXZ = 1.0f;
+
+        float scaleY = 1.8f / sizeY;
+        float scaleXZ = 1.2f / maxXZ;
+        float scale = fminf(scaleY, scaleXZ);
+        sadduceeModelScale = (Vector3){scale, scale, scale};
+        sadduceeModelOffset = (Vector3){
+            -((bounds.min.x + bounds.max.x) * 0.5f) * scale,
+            -(bounds.min.y * scale),
+            -((bounds.min.z + bounds.max.z) * 0.5f) * scale
+        };
+    }
 }
 
 static void UnloadModels(void) {
     if (snakeModelLoaded) {
         UnloadModel(snakeModel);
         snakeModelLoaded = false;
+    }
+    if (columnModelLoaded) {
+        UnloadModel(columnModel);
+        columnModelLoaded = false;
+    }
+    if (templeModelLoaded) {
+        UnloadModel(templeModel);
+        templeModelLoaded = false;
+    }
+    if (desertHouseModelLoaded) {
+        UnloadModel(desertHouseModel);
+        desertHouseModelLoaded = false;
+    }
+    if (sadduceeModelLoaded) {
+        UnloadModel(sadduceeModel);
+        sadduceeModelLoaded = false;
     }
 }
 
@@ -100,7 +235,7 @@ int main() {
     CombatSession combat = {0};
 
     bool isFirstPerson = false;
-    bool shadersEnabled = true; // Shadows on by default
+    bool shadersEnabled = false; // Start with shaders off; F2 still toggles them.
     
     // Shadow Mapping Resources
     Shader shadowShader = {0};

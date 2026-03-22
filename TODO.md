@@ -12,37 +12,11 @@
 - [x] swap out the cotton perhaps with a scroll or i think a mail enveloped, instead of this "cotton" block. 
 	- [x] no i want a flat, floating and dancing letter sprite that you click on instead of a boring scroll block
 
-- [ ] try and add in glb assets
-	- [ ] snake first probably
+- [x] try and add in glb assets
+	- [x] snake first
+		- [x] why is the snake white? should be green
+	- [x] roman columns next
+	- [ ] add in the roman temple glb
+		- [ ] it's all white. why is the snake and roman temple having problems, but the column renders great?
+- [x] if the system can't find the .glb file resort to the raylib creations
 
-
-# Malta Implementation Plan
-
-## 1. Environment & Setup
-- [x] **NPCs**: Add "Islander" NPCs to Malta in `LoadWorld` (src/world.c).
-- [x] **Snake Visibility**: Ensure the snake decoration is initially hidden or inactive until the fire is lit.
-- [x] fire pit should not have the triangle flames when it's "not lit" but should have brown cylindrical logs angled like a teepee. when you click to light it it should changes to the fire animation
-
-## 2. Fire Mechanic
-- [x] **Interaction**: Implement interaction with `DECO_FIRE_PIT`.
-- [x] **Snake Appearance**: When fire is lit, set snake decoration to active/visible and display message.
-
-## 3. Snake Interaction
-- [x] **Shake Off**: Interact with the snake (click) to shake it off.
-  - Updates state and hides snake.
-	- i don't think this is working. the snake is not attached to the player. i
-		think just when the fire is lit, the snake appears (like it is rn) and then
-		the dialogue should change. i don't think you should be able to shake off a
-		snake.
-
-## 4. NPC Dialogue & Reaction
-- [x] **Initial State**: Islanders call Paul a murderer.
-- [x] **Reaction State**: After shaking off snake, Islanders call Paul a god.
-
-## 5. Progression
-- [x] **Unlock Boat**: 
-  - Boat is locked until the snake event is completed.
-  - Captain/Message warns against sailing until winter passes (event complete).
-
-## Refactoring
-- [x] Move interaction logic to `UpdateWorld` or a dedicated `Interact` function to keep `main.c` clean (Optional/Future).
