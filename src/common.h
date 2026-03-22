@@ -88,6 +88,7 @@ typedef enum {
     SPRITE_PAUL,
     SPRITE_SADDUCEE,
     SPRITE_ANANIAS,
+    SPRITE_LETTER,
     SPRITE_COUNT
 } SpriteType;
 

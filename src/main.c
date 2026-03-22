@@ -41,6 +41,15 @@ void LoadSprites() {
     Image imgAnanias = GenImageChecked(32, 64, 8, 8, GREEN, WHITE);
     spriteDatabase[SPRITE_ANANIAS] = LoadTextureFromImage(imgAnanias);
     UnloadImage(imgAnanias);
+
+    Image imgLetter = GenImageColor(48, 48, BLANK);
+    ImageDrawRectangle(&imgLetter, 8, 12, 32, 22, (Color){244, 232, 196, 255});
+    ImageDrawRectangleLines(&imgLetter, (Rectangle){8, 12, 32, 22}, 2, DARKBROWN);
+    ImageDrawLine(&imgLetter, 8, 12, 24, 24, DARKBROWN);
+    ImageDrawLine(&imgLetter, 40, 12, 24, 24, DARKBROWN);
+    ImageDrawCircleV(&imgLetter, (Vector2){34, 28}, 3, RED);
+    spriteDatabase[SPRITE_LETTER] = LoadTextureFromImage(imgLetter);
+    UnloadImage(imgLetter);
 }
 
 int main() {

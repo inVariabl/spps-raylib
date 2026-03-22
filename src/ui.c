@@ -2,6 +2,40 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+static void DrawItemIcon(Rectangle bounds, int itemId) {
+    Color itemCol = itemDatabase[itemId].color;
+    int x = (int)bounds.x;
+    int y = (int)bounds.y;
+    int w = (int)bounds.width;
+    int h = (int)bounds.height;
+
+    switch (itemId) {
+        case 4: // Tent canvas as a folded envelope instead of a plain cloth block
+        {
+            Color paper = (Color){232, 214, 174, 255};
+            DrawRectangle(x + 3, y + 5, w - 6, h - 10, paper);
+            DrawRectangleLines(x + 3, y + 5, w - 6, h - 10, DARKBROWN);
+            DrawLine(x + 3, y + 5, x + w/2, y + h/2, DARKBROWN);
+            DrawLine(x + w - 3, y + 5, x + w/2, y + h/2, DARKBROWN);
+            DrawLine(x + 3, y + h - 5, x + w/2, y + h/2 + 1, DARKBROWN);
+            DrawLine(x + w - 3, y + h - 5, x + w/2, y + h/2 + 1, DARKBROWN);
+        } break;
+        case 5: // Letter quest item
+        {
+            Color paper = (Color){244, 232, 196, 255};
+            DrawRectangle(x + 4, y + 6, w - 8, h - 12, paper);
+            DrawRectangleLines(x + 4, y + 6, w - 8, h - 12, DARKBROWN);
+            DrawLine(x + 4, y + 6, x + w/2, y + h/2, DARKBROWN);
+            DrawLine(x + w - 4, y + 6, x + w/2, y + h/2, DARKBROWN);
+            DrawCircle(x + w - 8, y + h - 9, 3, RED);
+        } break;
+        default:
+            DrawRectangle(x + 5, y + 5, w - 10, h - 10, itemCol);
+            DrawRectangleLines(x + 5, y + 5, w - 10, h - 10, Fade(RAYWHITE, 0.25f));
+            break;
+    }
+}
+
 void DrawInventory(Player *player) {
     if (!player->showInventory) return;
 
@@ -22,8 +56,8 @@ void DrawInventory(Player *player) {
         DrawRectangle(slotX, slotY, 40, 35, BLACK); // Slot background
 
         if (player->inventory[i].itemId != 0) {
-            Color itemCol = itemDatabase[player->inventory[i].itemId].color;
-            DrawRectangle(slotX + 5, slotY + 5, 30, 25, itemCol);
+            DrawItemIcon((Rectangle){(float)slotX + 3, (float)slotY + 3, 34, 29},
+                         player->inventory[i].itemId);
         }
     }
 

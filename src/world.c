@@ -5,6 +5,36 @@
 #include <stdlib.h>
 #include <string.h>
 
+static void DrawGroundItemModel(Camera3D camera, Vector3 pos, int itemId) {
+    switch (itemId) {
+        case 4: // Envelope/mailer style pickup
+            DrawCube((Vector3){pos.x, 0.08f, pos.z}, 0.45f, 0.06f, 0.34f, (Color){232, 214, 174, 255});
+            DrawLine3D((Vector3){pos.x - 0.22f, 0.12f, pos.z - 0.17f},
+                       (Vector3){pos.x, 0.12f, pos.z},
+                       DARKBROWN);
+            DrawLine3D((Vector3){pos.x + 0.22f, 0.12f, pos.z - 0.17f},
+                       (Vector3){pos.x, 0.12f, pos.z},
+                       DARKBROWN);
+            break;
+        case 5: // Floating letter sprite
+        {
+            float t = (float)GetTime();
+            Vector3 letterPos = {
+                pos.x + sinf(t * 1.8f + pos.x * 0.4f) * 0.08f,
+                0.65f + sinf(t * 2.6f + pos.z * 0.3f) * 0.12f,
+                pos.z
+            };
+            float scale = 0.9f + sinf(t * 3.2f) * 0.08f;
+            DrawCircle3D((Vector3){pos.x, 0.03f, pos.z}, 0.22f, (Vector3){1.0f, 0.0f, 0.0f}, 90.0f, Fade(BLACK, 0.25f));
+            DrawBillboard(camera, spriteDatabase[SPRITE_LETTER], letterPos, scale, WHITE);
+        }
+            break;
+        default:
+            DrawCube((Vector3){pos.x, 0.15f, pos.z}, 0.3f, 0.3f, 0.3f, itemDatabase[itemId].color);
+            break;
+    }
+}
+
 static void DrawPalmTree(Vector3 pos) {
     float time = (float)GetTime();
     float windOffset = (pos.x * 1.1f + pos.z * 1.3f); // Unique offset for each tree
@@ -376,7 +406,9 @@ void DrawWorld(World *world, Camera3D camera) {
     for (int i = 0; i < MAX_GROUND_ITEMS; i++) {
         if (!world->state.items[i].active) continue;
         if (Vector3Distance(camera.target, (Vector3){(float)world->state.items[i].position.x, 0, (float)world->state.items[i].position.z}) < RENDER_DISTANCE) {
-            DrawCube((Vector3){(float)world->state.items[i].position.x, 0.15f, (float)world->state.items[i].position.z}, 0.3f, 0.3f, 0.3f, itemDatabase[world->state.items[i].itemId].color);
+            DrawGroundItemModel(camera,
+                                (Vector3){(float)world->state.items[i].position.x, 0, (float)world->state.items[i].position.z},
+                                world->state.items[i].itemId);
         }
     }
     for (int i = 0; i < 20; i++) {
