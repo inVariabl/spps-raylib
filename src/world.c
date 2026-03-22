@@ -484,8 +484,15 @@ void DrawWorld(World *world, Camera3D camera, bool drawShadows) {
                 Vector3 sPos = {center.x + cosf(t * 1.5f) * radius,
                                 0.12f + sinf(t * 2.0f) * 0.02f,
                                 center.z + sinf(t * 1.5f) * radius};
-                DrawCube((Vector3){sPos.x, 0.1f, sPos.z}, 1.0f, 0.15f, 0.6f, DARKGREEN);
-                DrawSphere((Vector3){sPos.x + 0.45f, 0.2f, sPos.z}, 0.2f, GREEN);
+
+                if (snakeModelLoaded) {
+                    float heading = -t * 86.0f;
+                    Vector3 modelPos = Vector3Add(sPos, snakeModelOffset);
+                    DrawModelEx(snakeModel, modelPos, (Vector3){0.0f, 1.0f, 0.0f}, heading, snakeModelScale, WHITE);
+                } else {
+                    DrawCube((Vector3){sPos.x, 0.1f, sPos.z}, 1.0f, 0.15f, 0.6f, DARKGREEN);
+                    DrawSphere((Vector3){sPos.x + 0.45f, 0.2f, sPos.z}, 0.2f, GREEN);
+                }
             }
                 break;
             default: break;

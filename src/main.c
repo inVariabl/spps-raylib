@@ -10,6 +10,44 @@
 #include <stdlib.h>
 
 Texture2D spriteDatabase[SPRITE_COUNT];
+Model snakeModel = {0};
+bool snakeModelLoaded = false;
+Vector3 snakeModelScale = {1.0f, 1.0f, 1.0f};
+Vector3 snakeModelOffset = {0};
+
+static void LoadModels(void) {
+    if (!FileExists("assets/snake.glb")) return;
+
+    snakeModel = LoadModel("assets/snake.glb");
+    snakeModelLoaded = snakeModel.meshCount > 0;
+    if (!snakeModelLoaded) return;
+
+    for (int i = 0; i < snakeModel.materialCount; i++) {
+        snakeModel.materials[i].maps[MATERIAL_MAP_DIFFUSE].color = (Color){82, 128, 64, 255};
+    }
+
+    BoundingBox bounds = GetModelBoundingBox(snakeModel);
+    float sizeX = bounds.max.x - bounds.min.x;
+    float sizeY = bounds.max.y - bounds.min.y;
+    float sizeZ = bounds.max.z - bounds.min.z;
+    float maxDim = fmaxf(sizeX, fmaxf(sizeY, sizeZ));
+    if (maxDim < 0.001f) maxDim = 1.0f;
+
+    float scale = 1.2f / maxDim;
+    snakeModelScale = (Vector3){scale, scale, scale};
+    snakeModelOffset = (Vector3){
+        -((bounds.min.x + bounds.max.x) * 0.5f) * scale,
+        -(bounds.min.y * scale) + 0.02f,
+        -((bounds.min.z + bounds.max.z) * 0.5f) * scale
+    };
+}
+
+static void UnloadModels(void) {
+    if (snakeModelLoaded) {
+        UnloadModel(snakeModel);
+        snakeModelLoaded = false;
+    }
+}
 
 static void MovePlayerToPort(Player *player, World *world, int portIdx) {
     Vector3Int p = world->state.ports[portIdx].position;
@@ -98,6 +136,7 @@ int main() {
     // 2. Initialization
     InitWindow(screenWidth, screenHeight, "RayScape - Paul's Journeys");
     LoadSprites();
+    LoadModels();
 
     // Initialize Shaders and Shadow Map
     shadowShader = LoadShader("shaders/shadow.vs", "shaders/shadow.fs");
@@ -447,9 +486,10 @@ int main() {
         EndDrawing();
     }
 
-    CloseWindow();
     UnloadShader(shadowShader);
     UnloadShader(depthShader);
     UnloadRenderTexture(shadowMap);
+    UnloadModels();
+    CloseWindow();
     return 0;
 }

@@ -93,6 +93,10 @@ typedef enum {
 } SpriteType;
 
 extern Texture2D spriteDatabase[SPRITE_COUNT];
+extern Model snakeModel;
+extern bool snakeModelLoaded;
+extern Vector3 snakeModelScale;
+extern Vector3 snakeModelOffset;
 
 typedef struct {
     Vector3 lightDir;
