@@ -93,7 +93,7 @@ typedef struct {
 void InitWorld(World *world);
 void LoadWorld(World *world, WorldId worldId);
 void UpdateWorld(World *world, Player *player);
-void DrawWorld(World *world, Camera3D camera);
+void DrawWorld(World *world, Camera3D camera, bool drawShadows);
 int GetClickedItem(World *world, Ray ray);
 int GetClickedDecoration(World *world, Ray ray);
 int GetClickedNPC(World *world, Ray ray);
@@ -104,6 +104,6 @@ Vector3Int GetGridClicked(Ray ray);
 void FindPath(World *world, Player *player, Vector3Int target);
 
 void UpdatePlayer(Player *player, World *world, bool isFirstPerson);
-void DrawPlayer(Player *player, Camera3D camera);
+void DrawPlayer(Player *player, Camera3D camera, bool drawShadow);
 
 #endif // WORLD_H

@@ -35,6 +35,107 @@ static void DrawGroundItemModel(Camera3D camera, Vector3 pos, int itemId) {
     }
 }
 
+static Vector3 GetShadowOffset(float height) {
+    return (Vector3){height * 0.22f, 0.02f, height * 0.14f};
+}
+
+static void DrawShadowDisc(Vector3 pos, float radius, Color color) {
+    DrawCircle3D((Vector3){pos.x, 0.02f, pos.z}, radius, (Vector3){1.0f, 0.0f, 0.0f}, 90.0f, color);
+}
+
+static void DrawDecorationShadow(Decoration deco) {
+    Vector3 base = {(float)deco.position.x, 0.0f, (float)deco.position.z};
+    Color shadowColor = Fade(BLACK, 0.10f);
+
+    switch (deco.type) {
+        case DECO_PALM_TREE:
+        {
+            Vector3 trunkShadow = Vector3Add(base, GetShadowOffset(2.0f));
+            DrawShadowDisc(trunkShadow, 0.26f, Fade(BLACK, 0.10f));
+
+            Vector3 frond1 = Vector3Add(base, GetShadowOffset(3.3f));
+            Vector3 frond2 = Vector3Add(base, (Vector3){0.95f, 0.02f, 0.25f});
+            Vector3 frond3 = Vector3Add(base, (Vector3){0.55f, 0.02f, 0.85f});
+            DrawShadowDisc(frond1, 0.95f, Fade(BLACK, 0.09f));
+            DrawShadowDisc(frond2, 0.65f, Fade(BLACK, 0.07f));
+            DrawShadowDisc(frond3, 0.58f, Fade(BLACK, 0.07f));
+        }
+            break;
+        case DECO_HOUSE:
+            DrawShadowDisc(Vector3Add(base, GetShadowOffset(2.2f)), 1.7f, shadowColor);
+            break;
+        case DECO_SYNAGOGUE:
+            DrawShadowDisc(Vector3Add(base, GetShadowOffset(3.0f)), 2.2f, shadowColor);
+            break;
+        case DECO_TEMPLE:
+            DrawShadowDisc(Vector3Add(base, GetShadowOffset(4.2f)), 3.6f, Fade(BLACK, 0.12f));
+            break;
+        case DECO_COLUMN:
+            DrawShadowDisc(Vector3Add(base, GetShadowOffset(2.6f)), 0.30f, Fade(BLACK, 0.10f));
+            break;
+        case DECO_FORUM_ARCH:
+            DrawShadowDisc(Vector3Add(base, GetShadowOffset(2.2f)), 1.3f, shadowColor);
+            break;
+        case DECO_SHIP:
+            DrawShadowDisc(Vector3Add(base, GetShadowOffset(1.4f)), 1.8f, Fade(BLACK, 0.10f));
+            break;
+        default:
+            break;
+    }
+}
+
+static void DrawWaterRegion(World *world, WaterRegion r, float time) {
+    float width = (float)(r.maxX - r.minX + 1);
+    float depth = (float)(r.maxZ - r.minZ + 1);
+    float centerX = (r.minX + r.maxX) / 2.0f;
+    float centerZ = (r.minZ + r.maxZ) / 2.0f;
+    float surge = sinf(time * 1.4f + centerZ * 0.03f) * 0.03f;
+    Vector3 waterPos = {centerX, 0.03f + surge, centerZ};
+
+    DrawCubeV(waterPos, (Vector3){width, 0.16f, depth}, (Color){45, 110, 185, 255});
+
+    // Repeating surface bands to fake wave motion without a full mesh system.
+    for (int band = 0; band < 5; band++) {
+        float zOffset = sinf(time * 1.7f + band * 0.8f) * 2.5f;
+        float bandZ = centerZ - depth * 0.35f + band * (depth * 0.18f) + zOffset;
+        DrawCubeV((Vector3){centerX, 0.12f + surge * 0.7f, bandZ},
+                  (Vector3){width, 0.01f, 1.2f},
+                  (Color){80, 135, 198, 255});
+    }
+
+    // If the water starts inside the playable map, dress that edge as shoreline.
+    if (r.minX <= world->state.maxX && r.minX >= world->state.minX) {
+        float shoreStartZ = (float)(r.minZ > world->state.minZ ? r.minZ : world->state.minZ);
+        float shoreEndZ = (float)(r.maxZ < world->state.maxZ ? r.maxZ : world->state.maxZ);
+        float shoreDepth = shoreEndZ - shoreStartZ + 1.0f;
+
+        if (shoreDepth > 0.0f) {
+            float shoreCenterZ = (shoreStartZ + shoreEndZ) / 2.0f;
+            float wash = 0.35f + 0.25f * (0.5f + 0.5f * sinf(time * 1.8f));
+            float washX = r.minX + 0.35f + wash;
+            float shoreLift = 0.03f + 0.03f * sinf(time * 2.8f);
+
+            // Narrow moving shore-break band. This keeps the sea blue while still animating the edge.
+            DrawCubeV((Vector3){washX, 0.11f + shoreLift, shoreCenterZ},
+                      (Vector3){0.7f, 0.015f, shoreDepth},
+                      Fade((Color){170, 220, 235, 255}, 0.30f));
+
+            for (int i = 0; i < 22; i++) {
+                float t = (float)i / 21.0f;
+                float foamZ = shoreStartZ + t * (shoreEndZ - shoreStartZ);
+                float foamAdvance = 0.18f + 0.45f * (0.5f + 0.5f * sinf(time * 2.1f + foamZ * 0.08f));
+                float foamY = 0.035f + 0.035f * sinf(time * 3.4f + i * 0.6f);
+                float foamRadius = 0.12f + 0.05f * sinf(time * 2.7f + i);
+                DrawCircle3D((Vector3){r.minX + foamAdvance, foamY, foamZ},
+                             foamRadius,
+                             (Vector3){1.0f, 0.0f, 0.0f},
+                             90.0f,
+                             Fade(RAYWHITE, 0.52f));
+            }
+        }
+    }
+}
+
 static void DrawPalmTree(Vector3 pos) {
     float time = (float)GetTime();
     float windOffset = (pos.x * 1.1f + pos.z * 1.3f); // Unique offset for each tree
@@ -163,6 +264,9 @@ void LoadWorld(World *world, WorldId worldId) {
             world->state.decos[3] = (Decoration){(Vector3Int){5, 0, 10}, DECO_HOUSE};
             world->state.decos[4] = (Decoration){(Vector3Int){-5, 0, 10}, DECO_HOUSE};
             AddPalmCluster(world, 10, 20, -20, 20, 5, 80);
+            // Extend the sea well beyond the playable edge so Judea reads like a shoreline, not a boxed-in pond.
+            world->state.water[0] = (WaterRegion){81, 320, -80, 80};
+            world->state.waterCount = 1;
             world->state.ports[0] = (Port){(Vector3Int){80, 0, 20}, "Sidon", 0, true};
             world->state.portCount = 1;
             world->state.decos[30] = (Decoration){(Vector3Int){88, 0, 16}, DECO_SHIP};
@@ -239,7 +343,9 @@ void InitWorld(World *world) {
 void UpdateWorld(World *world, Player *player) {
 }
 
-void DrawWorld(World *world, Camera3D camera) {
+void DrawWorld(World *world, Camera3D camera, bool drawShadows) {
+    float time = (float)GetTime();
+
     // 1. Tiled Floor (Sand-Colored)
     float centerX = (world->state.minX + world->state.maxX) / 2.0f;
     float centerZ = (world->state.minZ + world->state.maxZ) / 2.0f;
@@ -257,14 +363,7 @@ void DrawWorld(World *world, Camera3D camera) {
 
     // 1.5 Water regions
     for (int i = 0; i < world->state.waterCount; i++) {
-        WaterRegion r = world->state.water[i];
-        float width = (float)(r.maxX - r.minX + 1);
-        float depth = (float)(r.maxZ - r.minZ + 1);
-        float centerX = (r.minX + r.maxX) / 2.0f;
-        float centerZ = (r.minZ + r.maxZ) / 2.0f;
-        Vector3 pos = {centerX, -0.02f, centerZ};
-        Vector3 size = {width, 0.05f, depth};
-        DrawCubeV(pos, size, Fade(BLUE, 0.6f));
+        DrawWaterRegion(world, world->state.water[i], time);
     }
 
     if (world->state.landPolyCount > 2) {
@@ -294,6 +393,8 @@ void DrawWorld(World *world, Camera3D camera) {
         Vector3 pos = {(float)world->state.decos[i].position.x, 0, (float)world->state.decos[i].position.z};
         float dist = Vector3Distance(camera.target, pos);
         if (dist > RENDER_DISTANCE + 20) continue;
+
+        if (drawShadows) DrawDecorationShadow(world->state.decos[i]);
 
         switch (world->state.decos[i].type) {
             case DECO_PALM_TREE:

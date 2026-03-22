@@ -72,7 +72,7 @@ int main() {
     
     // Shader Settings
     ShaderSettings settings = {
-        .lightDir = Vector3Normalize((Vector3){0.1f, 1.0f, 0.1f}),
+        .lightDir = (Vector3){0.0f, 1.0f, 0.0f},
         .lightColor = WHITE,
         .ambient = 0.6f,
         .shadowBias = 0.005f,
@@ -321,15 +321,18 @@ int main() {
         Matrix lightProj;
         float shadowBoxSize = 60.0f; // Increased size
         Vector3 lightDir = settings.lightDir;
-        if (Vector3LengthSqr(lightDir) < 0.0001f) lightDir = (Vector3){0.1f, 1.0f, 0.1f};
+        if (Vector3LengthSqr(lightDir) < 0.0001f) lightDir = (Vector3){0.0f, 1.0f, 0.0f};
         lightDir = Vector3Normalize(lightDir);
         float lightDistance = 40.0f;
         Vector3 lightPos = Vector3Scale(lightDir, lightDistance);
         Vector3 center = isFirstPerson ? player.lerpPosition : camera.target;
+        Vector3 lightUp = fabsf(Vector3DotProduct(lightDir, (Vector3){0, 1, 0})) > 0.98f
+                        ? (Vector3){0, 0, 1}
+                        : (Vector3){0, 1, 0};
         
         // Ensure light follows the camera/player
         Vector3 lightCamPos = Vector3Add(center, lightPos);
-        lightView = MatrixLookAt(lightCamPos, center, (Vector3){0, 1, 0});
+        lightView = MatrixLookAt(lightCamPos, center, lightUp);
         lightProj = MatrixOrtho(-shadowBoxSize, shadowBoxSize, -shadowBoxSize, shadowBoxSize, 1.0f, 150.0f);
         
         // MVP = P * V * M. So VP = P * V.
@@ -354,14 +357,14 @@ int main() {
             BeginTextureMode(shadowMap);
                 ClearBackground(WHITE); // Far plane depth is 1.0 (White)
                 BeginMode3D((Camera3D){
-                    lightCamPos, center, {0, 1, 0}, 90.0f, CAMERA_ORTHOGRAPHIC // fovy placeholder
+                    lightCamPos, center, lightUp, 90.0f, CAMERA_ORTHOGRAPHIC // fovy placeholder
                 });
                     // Force the exact projection matrix we calculated
                     rlSetMatrixProjection(lightProj);
                     
                     BeginShaderMode(depthShader);
                         rlDisableBackfaceCulling();
-                        DrawWorld(&world, (Camera3D){lightCamPos, center, {0,1,0}, 40.0f, CAMERA_ORTHOGRAPHIC});
+                        DrawWorld(&world, (Camera3D){lightCamPos, center, lightUp, 40.0f, CAMERA_ORTHOGRAPHIC}, false);
                         rlEnableBackfaceCulling();
                     EndShaderMode();
 
@@ -400,8 +403,8 @@ int main() {
                 BeginShaderMode(shadowShader);
             }
 
-            DrawWorld(&world, camera);
-            if (!isFirstPerson) DrawPlayer(&player, camera);
+            DrawWorld(&world, camera, shadersEnabled);
+            if (!isFirstPerson) DrawPlayer(&player, camera, shadersEnabled);
 
             if (shadersEnabled) {
                 EndShaderMode();

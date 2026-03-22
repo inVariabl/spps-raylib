@@ -117,7 +117,14 @@ void UpdatePlayer(Player *player, World *world, bool isFirstPerson) {
     }
 }
 
-void DrawPlayer(Player *player, Camera3D camera) {
+void DrawPlayer(Player *player, Camera3D camera, bool drawShadow) {
+    if (drawShadow) {
+        DrawCircle3D((Vector3){player->lerpPosition.x + 0.18f, 0.02f, player->lerpPosition.z + 0.10f},
+                     0.34f,
+                     (Vector3){1.0f, 0.0f, 0.0f},
+                     90.0f,
+                     Fade(BLACK, 0.12f));
+    }
     Vector3 pos = {player->lerpPosition.x, 0.75f, player->lerpPosition.z};
     DrawBillboard(camera, spriteDatabase[SPRITE_PAUL], pos, 1.5f, WHITE);
 }
