@@ -2,6 +2,66 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+static bool PlayerHasItem(const Player *player, int itemId) {
+    for (int i = 0; i < INVENTORY_SIZE; i++) {
+        if (player->inventory[i].itemId == itemId) {
+            return true;
+        }
+    }
+    return false;
+}
+
+static void GetQuestLogText(const Player *player, const World *world,
+                            const char **title, const char **line1, const char **line2) {
+    *title = "Current Objective";
+    *line1 = "Keep moving forward.";
+    *line2 = "";
+
+    if (world->state.worldId == WORLD_JUDEA) {
+        *title = "Jerusalem";
+        if (!PlayerHasItem(player, 5)) {
+            *line1 = "Collect the letters nearby.";
+            *line2 = "Talk to people in the city.";
+        } else if (player->questStates[1] == QUEST_NOT_STARTED) {
+            *line1 = "Talk to people in Jerusalem.";
+            *line2 = "Look for your next assignment.";
+        } else if (player->questStates[1] == QUEST_ACTIVE) {
+            *line1 = "Carry the scroll onward.";
+            *line2 = "Head toward the coast to depart.";
+        } else {
+            *line1 = "Make your way to the ship.";
+            *line2 = "Travel when you are ready.";
+        }
+        return;
+    }
+
+    if (world->state.worldId == WORLD_MALTA) {
+        *title = "Malta";
+        if (player->questStates[3] == QUEST_NOT_STARTED) {
+            *line1 = "Click the fire to light it.";
+            *line2 = "Stay with the islanders.";
+        } else if (player->questStates[3] == QUEST_ACTIVE) {
+            *line1 = "The viper has struck.";
+            *line2 = "Wait and see what happens.";
+        } else {
+            *line1 = "Return to the ship at port.";
+            *line2 = "Sail onward when ready.";
+        }
+        return;
+    }
+
+    if (world->state.worldId == WORLD_PUTEOLI) {
+        *title = "Road to Rome";
+        if (!player->gameComplete) {
+            *line1 = "Travel north toward Rome.";
+            *line2 = "Reach the house at the end.";
+        } else {
+            *line1 = "Press H near the house.";
+            *line2 = "Enter house arrest.";
+        }
+    }
+}
+
 static void DrawItemIcon(Rectangle bounds, int itemId) {
     Color itemCol = itemDatabase[itemId].color;
     int x = (int)bounds.x;
@@ -40,7 +100,7 @@ void DrawInventory(Player *player) {
     if (!player->showInventory) return;
 
     int questStartY = GetScreenHeight() - 450;
-    int questHeight = 90;
+    int questHeight = 110;
     int invStartX = GetScreenWidth() - 220;
     int invStartY = questStartY + questHeight + 10;
 
@@ -202,13 +262,6 @@ void DrawHUD(Player *player, World *world, bool isFirstPerson) {
             DrawText("Julius: You may visit friends in Sidon.", 18, 124, 14, SKYBLUE);
         }
     }
-    if (world->state.hasSnake) {
-        Vector3Int s = world->state.snakePos;
-        if (abs(player->position.x - s.x) <= 6 && abs(player->position.z - s.z) <= 6) {
-            DrawRectangle(10, 150, 360, 24, Fade(BLACK, 0.6f));
-            DrawText("A viper strikes, but Paul is unharmed.", 18, 154, 14, ORANGE);
-        }
-    }
     if (!player->gameComplete && world->state.hasHouseArrest) {
         Vector3Int h = world->state.houseArrestPos;
         if (abs(player->position.x - h.x) <= 4 && abs(player->position.z - h.z) <= 4) {
@@ -226,17 +279,19 @@ void DrawHUD(Player *player, World *world, bool isFirstPerson) {
     // QUEST LOG
     int questStartX = GetScreenWidth() - 220;
     int questStartY = GetScreenHeight() - 450;
-    DrawRectangle(questStartX, questStartY, 200, 90, Fade(BLUE, 0.4f));
-    DrawRectangleLines(questStartX, questStartY, 200, 90, SKYBLUE);
+    DrawRectangle(questStartX, questStartY, 200, 110, Fade(BLUE, 0.4f));
+    DrawRectangleLines(questStartX, questStartY, 200, 110, SKYBLUE);
     DrawText("QUEST LOG", questStartX + 10, questStartY + 10, 15, GOLD);
-    
-    if (player->activeQuestId != 0) {
-        int qId = player->activeQuestId;
-        DrawText(questDatabase[qId].title, questStartX + 10, questStartY + 35, 12, WHITE);
-        // Truncate description for log
-        DrawText(TextSubtext(questDatabase[qId].description, 0, 30), questStartX + 10, questStartY + 55, 10, GRAY);
-    } else {
-        DrawText("No active mission.", questStartX + 10, questStartY + 40, 12, GRAY);
+
+    const char *questTitle;
+    const char *line1;
+    const char *line2;
+    GetQuestLogText(player, world, &questTitle, &line1, &line2);
+
+    DrawText(questTitle, questStartX + 10, questStartY + 35, 12, WHITE);
+    DrawText(line1, questStartX + 10, questStartY + 55, 10, WHITE);
+    if (line2[0] != '\0') {
+        DrawText(line2, questStartX + 10, questStartY + 70, 10, WHITE);
     }
 }
 
