@@ -93,12 +93,181 @@ static void ClearWorldState(World *world) {
     for (int i = 0; i < MAX_GROUND_ITEMS; i++) world->state.items[i].active = false;
     for (int i = 0; i < 20; i++) world->state.npcs[i].active = false;
     for (int i = 0; i < MAX_DECORATIONS; i++) world->state.decos[i].type = DECO_NONE;
+    for (int i = 0; i < MAX_PROJECTILES; i++) world->state.projectiles[i].active = false;
     world->state.waterCount = 0;
     world->state.portCount = 0;
     world->state.hasJulius = false;
     world->state.hasSnake = false;
     world->state.hasHouseArrest = false;
+    world->state.playerSeenByPharisee = false;
+    world->state.watchingPhariseeIndex = -1;
+    world->state.nearbyPreachNpcIndex = -1;
+    world->state.nearbyPreachNpcSeesPlayer = false;
     world->state.landPolyCount = 0;
+}
+
+static bool IsSightLineBlocked(World *world, Vector3Int from, Vector3Int to) {
+    float dx = (float)(to.x - from.x);
+    float dz = (float)(to.z - from.z);
+    float distance = sqrtf(dx * dx + dz * dz);
+    int steps = (int)(distance * 2.0f);
+    if (steps < 2) return false;
+
+    for (int i = 1; i < steps; i++) {
+        float t = (float)i / (float)steps;
+        Vector3Int sample = {
+            (int)roundf((float)from.x + dx * t),
+            0,
+            (int)roundf((float)from.z + dz * t)
+        };
+        if (sample.x == from.x && sample.z == from.z) continue;
+        if (sample.x == to.x && sample.z == to.z) continue;
+        if (IsTileBlocked(world, sample)) return true;
+    }
+
+    return false;
+}
+
+static bool CanPhariseeSeePlayer(World *world, NPC *npc, Player *player) {
+    Vector2 toPlayer = {
+        player->lerpPosition.x - npc->lerpPosition.x,
+        player->lerpPosition.z - npc->lerpPosition.z
+    };
+    float distance = Vector2Length(toPlayer);
+    if (distance > 11.0f || distance < 0.01f) return false;
+
+    Vector3Int npcTile = {(int)roundf(npc->lerpPosition.x), 0, (int)roundf(npc->lerpPosition.z)};
+    Vector3Int playerTile = {(int)roundf(player->lerpPosition.x), 0, (int)roundf(player->lerpPosition.z)};
+    if (IsSightLineBlocked(world, npcTile, playerTile)) return false;
+
+    return true;
+}
+
+static bool CanPreachTargetSeePlayer(World *world, NPC *npc, Player *player) {
+    Vector2 toPlayer = {
+        player->lerpPosition.x - npc->lerpPosition.x,
+        player->lerpPosition.z - npc->lerpPosition.z
+    };
+    float distance = Vector2Length(toPlayer);
+    if (distance > 4.5f || distance < 0.01f) return false;
+
+    Vector3Int npcTile = {(int)roundf(npc->lerpPosition.x), 0, (int)roundf(npc->lerpPosition.z)};
+    Vector3Int playerTile = {(int)roundf(player->lerpPosition.x), 0, (int)roundf(player->lerpPosition.z)};
+    if (IsSightLineBlocked(world, npcTile, playerTile)) return false;
+
+    Vector2 directionToPlayer = Vector2Scale(toPlayer, 1.0f / distance);
+    Vector2 facing = npc->facingDirection;
+    if (Vector2Length(facing) < 0.001f) facing = directionToPlayer;
+
+    return Vector2DotProduct(facing, directionToPlayer) >= -0.15f;
+}
+
+static void SpawnRockProjectile(World *world, NPC *npc, Player *player) {
+    for (int i = 0; i < MAX_PROJECTILES; i++) {
+        Projectile *projectile = &world->state.projectiles[i];
+        if (projectile->active) continue;
+
+        Vector3 start = {npc->lerpPosition.x, 1.2f, npc->lerpPosition.z};
+        Vector3 target = {player->lerpPosition.x, 0.8f, player->lerpPosition.z};
+        Vector3 velocity = Vector3Subtract(target, start);
+        float distance = Vector3Length(velocity);
+        if (distance < 0.001f) return;
+
+        velocity = Vector3Scale(velocity, 1.0f / distance);
+        velocity = Vector3Scale(velocity, 7.0f);
+        velocity.y += 2.5f;
+
+        projectile->position = start;
+        projectile->velocity = velocity;
+        projectile->lifetime = 3.5f;
+        projectile->damage = 12;
+        projectile->active = true;
+        return;
+    }
+}
+
+static void UpdateProjectiles(World *world, Player *player) {
+    float dt = GetFrameTime();
+    Vector3 playerCenter = {player->lerpPosition.x, 0.8f, player->lerpPosition.z};
+
+    for (int i = 0; i < MAX_PROJECTILES; i++) {
+        Projectile *projectile = &world->state.projectiles[i];
+        if (!projectile->active) continue;
+
+        projectile->lifetime -= dt;
+        projectile->velocity.y -= 9.0f * dt;
+        projectile->position.x += projectile->velocity.x * dt;
+        projectile->position.y += projectile->velocity.y * dt;
+        projectile->position.z += projectile->velocity.z * dt;
+
+        if (Vector3Distance(projectile->position, playerCenter) < 0.7f) {
+            DamagePlayerSpirit(player, projectile->damage);
+            projectile->active = false;
+            continue;
+        }
+
+        if (projectile->lifetime <= 0.0f || projectile->position.y <= 0.05f) {
+            projectile->active = false;
+        }
+    }
+}
+
+static void UpdatePreaching(World *world, Player *player) {
+    float dt = GetFrameTime();
+    int nearestNpcIndex = -1;
+    float nearestDistance = 9999.0f;
+
+    world->state.nearbyPreachNpcIndex = -1;
+    world->state.nearbyPreachNpcSeesPlayer = false;
+
+    for (int i = 0; i < 20; i++) {
+        NPC *npc = &world->state.npcs[i];
+        if (!npc->active || TextIsEqual(npc->name, "Pharisee")) continue;
+
+        float distance = Vector2Distance(
+            (Vector2){npc->lerpPosition.x, npc->lerpPosition.z},
+            (Vector2){player->lerpPosition.x, player->lerpPosition.z}
+        );
+        if (distance > 2.25f || distance >= nearestDistance) continue;
+
+        nearestDistance = distance;
+        nearestNpcIndex = i;
+    }
+
+    world->state.nearbyPreachNpcIndex = nearestNpcIndex;
+    player->preachingNpcIndex = nearestNpcIndex;
+
+    if (player->preachSuccessTimer > 0.0f) {
+        player->preachSuccessTimer -= dt;
+        if (player->preachSuccessTimer < 0.0f) player->preachSuccessTimer = 0.0f;
+    }
+
+    if (nearestNpcIndex == -1) {
+        player->preachHoldTimer = 0.0f;
+        return;
+    }
+
+    NPC *targetNpc = &world->state.npcs[nearestNpcIndex];
+    bool targetSeesPlayer = CanPreachTargetSeePlayer(world, targetNpc, player);
+    world->state.nearbyPreachNpcSeesPlayer = targetSeesPlayer;
+
+    if (!targetSeesPlayer || targetNpc->preachCooldown > 0.0f || !IsKeyDown(KEY_E)) {
+        player->preachHoldTimer = 0.0f;
+        return;
+    }
+
+    player->preachHoldTimer += dt;
+    if (player->preachHoldTimer < 3.0f) return;
+
+    player->preachHoldTimer = 0.0f;
+    targetNpc->preachCooldown = 5.0f;
+    player->spirit += 20;
+    if (player->spirit > player->maxSpirit) player->spirit = player->maxSpirit;
+    player->preachSuccessTimer = 2.5f;
+
+    if (world->state.playerSeenByPharisee && player->wantedStars < 5) {
+        player->wantedStars++;
+    }
 }
 
 static void AddPalmCluster(World *world, int startIdx, int count, int minX, int maxX, int minZ, int maxZ) {
@@ -125,7 +294,14 @@ void LoadWorld(World *world, WorldId worldId) {
             world->state.maxX = 140;
             world->state.minZ = -40;
             world->state.maxZ = 120;
-            world->state.npcs[0] = (NPC){(Vector3Int){2, 0, -3}, "Sadducee", true};
+            InitNPC(&world->state.npcs[0], "Pharisee", (Vector3Int){2, 0, -3}, SPRITE_SADDUCEE, true, 6);
+            InitNPC(&world->state.npcs[1], "Merchant", (Vector3Int){12, 0, 14}, SPRITE_PAUL, false, 0);
+            InitNPC(&world->state.npcs[2], "Guard", (Vector3Int){5, 0, 1}, SPRITE_PAUL, false, 0);
+            InitNPC(&world->state.npcs[3], "Pilgrim", (Vector3Int){6, 0, 18}, SPRITE_PAUL, true, 4);
+            InitNPC(&world->state.npcs[4], "Elder", (Vector3Int){-8, 0, 16}, SPRITE_PAUL, false, 0);
+            InitNPC(&world->state.npcs[5], "Pharisee", (Vector3Int){9, 0, 11}, SPRITE_SADDUCEE, true, 4);
+            InitNPC(&world->state.npcs[6], "Pharisee", (Vector3Int){2, 0, 15}, SPRITE_SADDUCEE, true, 5);
+            InitNPC(&world->state.npcs[7], "Pharisee", (Vector3Int){-11, 0, 13}, SPRITE_SADDUCEE, true, 4);
             world->state.items[0] = (GroundItem){(Vector3Int){-3, 0, 4}, 5, true};
             world->state.decos[0] = (Decoration){(Vector3Int){0, 0, -10}, DECO_TEMPLE};
             world->state.decos[1] = (Decoration){(Vector3Int){-15, 0, -5}, DECO_SYNAGOGUE};
@@ -147,6 +323,7 @@ void LoadWorld(World *world, WorldId worldId) {
             world->state.maxX = 140;
             world->state.minZ = 120;
             world->state.maxZ = 220;
+            InitNPC(&world->state.npcs[0], "Ananias", (Vector3Int){96, 0, 174}, SPRITE_ANANIAS, false, 0);
             AddPalmCluster(world, 0, 12, 70, 130, 130, 210);
             world->state.decos[20] = (Decoration){(Vector3Int){100, 0, 170}, DECO_HOUSE};
             world->state.decos[21] = (Decoration){(Vector3Int){92, 0, 165}, DECO_HOUSE};
@@ -271,6 +448,55 @@ void InitWorld(World *world) {
 }
 
 void UpdateWorld(World *world, Player *player) {
+    float dt = GetFrameTime();
+
+    for (int i = 0; i < 20; i++) {
+        if (!world->state.npcs[i].active) continue;
+        UpdateNPC(&world->state.npcs[i], world, player, i);
+    }
+
+    world->state.playerSeenByPharisee = false;
+    world->state.watchingPhariseeIndex = -1;
+    for (int i = 0; i < 20; i++) {
+        NPC *npc = &world->state.npcs[i];
+        if (!npc->active) continue;
+
+        npc->attackCooldown -= dt;
+        if (npc->attackCooldown < 0.0f) npc->attackCooldown = 0.0f;
+
+        if (!TextIsEqual(npc->name, "Pharisee")) {
+            npc->detectionTimer = 0.0f;
+            continue;
+        }
+
+        if (CanPhariseeSeePlayer(world, npc, player)) {
+            npc->detectionTimer = 1.0f;
+            world->state.playerSeenByPharisee = true;
+            world->state.watchingPhariseeIndex = i;
+
+            if (player->wantedStars >= 1 && npc->attackCooldown <= 0.0f) {
+                SpawnRockProjectile(world, npc, player);
+                npc->attackCooldown = 1.8f;
+            }
+        } else {
+            npc->detectionTimer = 0.0f;
+        }
+    }
+
+    if (world->state.playerSeenByPharisee) {
+        player->wantedDecayTimer = 6.0f;
+    } else if (player->wantedStars > 0) {
+        player->wantedDecayTimer -= dt;
+        if (player->wantedDecayTimer <= 0.0f) {
+            player->wantedStars--;
+            player->wantedDecayTimer = (player->wantedStars > 0) ? 4.0f : 0.0f;
+        }
+    } else {
+        player->wantedDecayTimer = 0.0f;
+    }
+
+    UpdatePreaching(world, player);
+    UpdateProjectiles(world, player);
 }
 
 void DrawWorld(World *world, Camera3D camera) {
@@ -435,11 +661,18 @@ void DrawWorld(World *world, Camera3D camera) {
     for (int i = 0; i < 20; i++) {
         if (!world->state.npcs[i].active) continue;
         if (Vector3Distance(camera.target, (Vector3){(float)world->state.npcs[i].position.x, 0, (float)world->state.npcs[i].position.z}) < RENDER_DISTANCE) {
-            Texture2D tex = spriteDatabase[SPRITE_PAUL];
-            if (TextIsEqual(world->state.npcs[i].name, "Sadducee")) tex = spriteDatabase[SPRITE_SADDUCEE];
-            else if (TextIsEqual(world->state.npcs[i].name, "Ananias")) tex = spriteDatabase[SPRITE_ANANIAS];
-            DrawBillboard(camera, tex, (Vector3){(float)world->state.npcs[i].position.x, 0.75f, (float)world->state.npcs[i].position.z}, 1.5f, WHITE);
+            DrawNPC(&world->state.npcs[i], camera);
         }
+    }
+
+    for (int i = 0; i < MAX_PROJECTILES; i++) {
+        Projectile *projectile = &world->state.projectiles[i];
+        if (!projectile->active) continue;
+        if (Vector3Distance(camera.target, projectile->position) > RENDER_DISTANCE + 10.0f) continue;
+
+        DrawSphere(projectile->position, 0.22f, DARKGRAY);
+        DrawCircle3D((Vector3){projectile->position.x, 0.02f, projectile->position.z},
+                     0.18f, (Vector3){1.0f, 0.0f, 0.0f}, 90.0f, Fade(BLACK, 0.25f));
     }
 }
 
@@ -514,11 +747,15 @@ int GetClickedItem(World *world, Ray ray) {
 int GetClickedNPC(World *world, Ray ray) {
     for (int i = 0; i < 20; i++) {
         if (!world->state.npcs[i].active) continue;
-        BoundingBox box = {(Vector3){(float)world->state.npcs[i].position.x - 0.4f, 0, (float)world->state.npcs[i].position.z - 0.4f},
-                           (Vector3){(float)world->state.npcs[i].position.x + 0.4f, 1.2f, (float)world->state.npcs[i].position.z + 0.4f}};
+        BoundingBox box = {(Vector3){world->state.npcs[i].lerpPosition.x - 0.4f, 0, world->state.npcs[i].lerpPosition.z - 0.4f},
+                           (Vector3){world->state.npcs[i].lerpPosition.x + 0.4f, 1.2f, world->state.npcs[i].lerpPosition.z + 0.4f}};
         if (GetRayCollisionBox(ray, box).hit) return i;
     }
     return -1;
+}
+
+bool IsPlayerSeenByPharisee(World *world) {
+    return world->state.playerSeenByPharisee;
 }
 
 Vector3Int GetGridClicked(Ray ray) {

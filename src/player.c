@@ -1,12 +1,22 @@
 #include "player.h"
 #include <stdio.h>
 
+void ResetPlayerMovement(Player *player, Vector3Int position) {
+    player->position = position;
+    player->target = position;
+    player->finalTarget = position;
+    player->pathSize = 0;
+    player->pathIndex = 0;
+    player->moveTimer = 0.0f;
+    player->lerpPosition = (Vector3){(float)position.x, 0.0f, (float)position.z};
+}
+
 void InitPlayer(Player *player) {
-    player->position = (Vector3Int){0, 0, 0};
-    player->target = player->position;
-    player->lerpPosition = (Vector3){0, 0, 0};
+    ResetPlayerMovement(player, (Vector3Int){0, 0, 0});
     player->spirit = 100;
     player->maxSpirit = 100;
+    player->wantedStars = 0;
+    player->wantedDecayTimer = 0.0f;
     player->activeQuestId = 0;
     for (int i = 0; i < 10; i++) player->questStates[i] = QUEST_NOT_STARTED;
     
@@ -26,6 +36,19 @@ void InitPlayer(Player *player) {
     player->showInventory = true;
     player->showMap = true;
     player->gameComplete = false;
+    player->preachingNpcIndex = -1;
+    player->preachHoldTimer = 0.0f;
+    player->preachSuccessTimer = 0.0f;
+}
+
+void DamagePlayerSpirit(Player *player, int amount) {
+    if (amount <= 0) return;
+
+    player->spirit -= amount;
+    if (player->spirit > 0) return;
+
+    player->spirit = 20;
+    ResetPlayerMovement(player, (Vector3Int){0, 0, 0});
 }
 
 #include "world.h"

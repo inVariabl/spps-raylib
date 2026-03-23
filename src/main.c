@@ -12,12 +12,7 @@ Texture2D spriteDatabase[SPRITE_COUNT];
 
 static void MovePlayerToPort(Player *player, World *world, int portIdx) {
     Vector3Int p = world->state.ports[portIdx].position;
-    player->position = p;
-    player->target = p;
-    player->finalTarget = p;
-    player->pathSize = 0;
-    player->pathIndex = 0;
-    player->lerpPosition = (Vector3){(float)p.x, 0.0f, (float)p.z};
+    ResetPlayerMovement(player, p);
 }
 
 static void HandlePortTravel(Player *player, World *world, int portIdx) {
@@ -122,7 +117,7 @@ int main() {
             if (npcIdx != -1) {
                 const char *npcName = world.state.npcs[npcIdx].name;
                 
-                if (TextIsEqual(npcName, "Sadducee")) {
+                if (TextIsEqual(npcName, "Pharisee")) {
                     if (player.questStates[1] == QUEST_NOT_STARTED) {
                         player.activeQuestId = 1;
                         player.questStates[1] = QUEST_ACTIVE;

@@ -2,12 +2,7 @@
 #define WORLD_H
 
 #include "common.h"
-
-typedef struct {
-    Vector3Int position;
-    const char *name;
-    bool active;
-} NPC;
+#include "npc.h"
 
 typedef struct {
     Vector3Int coords;
@@ -18,6 +13,7 @@ typedef struct {
 #define MAX_WATER_REGIONS 8
 #define MAX_PORTS 8
 #define MAX_LAND_POLY 8
+#define MAX_PROJECTILES 16
 
 typedef enum {
     WORLD_JUDEA = 0,
@@ -43,6 +39,14 @@ typedef struct {
     int nextPortIndex; // -1 if none
     bool active;
 } Port;
+
+typedef struct {
+    Vector3 position;
+    Vector3 velocity;
+    float lifetime;
+    int damage;
+    bool active;
+} Projectile;
 
 #define MAX_DECORATIONS 200
 
@@ -70,6 +74,11 @@ typedef struct {
     bool hasSnake;
     Vector3Int houseArrestPos;
     bool hasHouseArrest;
+    bool playerSeenByPharisee;
+    int watchingPhariseeIndex;
+    int nearbyPreachNpcIndex;
+    bool nearbyPreachNpcSeesPlayer;
+    Projectile projectiles[MAX_PROJECTILES];
     Vector2 landPoly[MAX_LAND_POLY];
     int landPolyCount;
     int minX;
@@ -92,7 +101,7 @@ static const City worldMap[] = {
     {{0, 0, 720}, "Rome", "The Imperial City."}
 };
 
-typedef struct {
+typedef struct World {
     WorldState state;
 } World;
 
@@ -104,6 +113,7 @@ void UpdateWorld(World *world, Player *player);
 void DrawWorld(World *world, Camera3D camera);
 int GetClickedItem(World *world, Ray ray);
 int GetClickedNPC(World *world, Ray ray);
+bool IsPlayerSeenByPharisee(World *world);
 bool IsTileBlocked(World *world, Vector3Int pos);
 bool IsWaterTile(World *world, Vector3Int pos);
 int GetPortAt(World *world, Vector3Int pos);

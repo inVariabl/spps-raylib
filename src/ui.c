@@ -69,12 +69,24 @@ void DrawHUD(Player *player, World *world, bool isFirstPerson) {
     DrawRectangle(12, 12, (int)(196 * hpPct), 21, RED);
     DrawText("SPIRIT", 80, 15, 12, WHITE);
 
+    int starsX = GetScreenWidth() - 170;
+    int starsY = 12;
+    DrawRectangle(starsX - 10, starsY - 4, 150, 28, Fade(BLACK, 0.55f));
+    for (int i = 0; i < 5; i++) {
+        Color starColor = (i < player->wantedStars) ? GOLD : Fade(LIGHTGRAY, 0.4f);
+        DrawText("*", starsX + i * 24, starsY, 24, starColor);
+    }
+
     // Location Display
     DrawRectangle(10, 40, 200, 50, Fade(DARKGRAY, 0.7f));
     DrawText("COORDINATES", 15, 45, 12, GOLD);
     char buf[64];
     sprintf(buf, "X: %d, Z: %d", player->position.x, player->position.z);
     DrawText(buf, 15, 60, 20, WHITE);
+
+    DrawRectangle(10, 95, 200, 24, Fade(BLACK, 0.6f));
+    DrawText(IsPlayerSeenByPharisee(world) ? "WATCHED: PHARISEE" : "WATCHED: CLEAR",
+             18, 101, 14, IsPlayerSeenByPharisee(world) ? RED : GREEN);
 
     // --- NAVIGATION COMPASS ---
     if (player->showMap) {
@@ -144,8 +156,8 @@ void DrawHUD(Player *player, World *world, bool isFirstPerson) {
     int portIdx = GetPortAt(world, player->position);
     if (world->state.nextWorldId != WORLD_NONE) {
         const char *targetName = world->state.nextWorldName;
-        DrawRectangle(10, 90, 300, 28, Fade(BLACK, 0.6f));
-        DrawText(TextFormat("Objective: Travel to %s", targetName), 18, 96, 16, YELLOW);
+        DrawRectangle(10, 125, 300, 28, Fade(BLACK, 0.6f));
+        DrawText(TextFormat("Objective: Travel to %s", targetName), 18, 131, 16, YELLOW);
 
         if (portIdx != -1) {
             int msgX = GetScreenWidth() / 2 - 140;
@@ -157,29 +169,29 @@ void DrawHUD(Player *player, World *world, bool isFirstPerson) {
                      msgX, msgY, 16, SKYBLUE);
         }
     } else {
-        DrawRectangle(10, 90, 300, 28, Fade(BLACK, 0.6f));
-        DrawText("Objective: Follow the road to Rome", 18, 96, 16, YELLOW);
+        DrawRectangle(10, 125, 300, 28, Fade(BLACK, 0.6f));
+        DrawText("Objective: Follow the road to Rome", 18, 131, 16, YELLOW);
     }
 
     if (world->state.hasJulius) {
         Vector3Int j = world->state.juliusPos;
         if (abs(player->position.x - j.x) <= 5 && abs(player->position.z - j.z) <= 5) {
-            DrawRectangle(10, 120, 360, 24, Fade(BLACK, 0.6f));
-            DrawText("Julius: You may visit friends in Sidon.", 18, 124, 14, SKYBLUE);
+            DrawRectangle(10, 155, 360, 24, Fade(BLACK, 0.6f));
+            DrawText("Julius: You may visit friends in Sidon.", 18, 159, 14, SKYBLUE);
         }
     }
     if (world->state.hasSnake) {
         Vector3Int s = world->state.snakePos;
         if (abs(player->position.x - s.x) <= 6 && abs(player->position.z - s.z) <= 6) {
-            DrawRectangle(10, 150, 360, 24, Fade(BLACK, 0.6f));
-            DrawText("A viper strikes, but Paul is unharmed.", 18, 154, 14, ORANGE);
+            DrawRectangle(10, 185, 360, 24, Fade(BLACK, 0.6f));
+            DrawText("A viper strikes, but Paul is unharmed.", 18, 189, 14, ORANGE);
         }
     }
     if (!player->gameComplete && world->state.hasHouseArrest) {
         Vector3Int h = world->state.houseArrestPos;
         if (abs(player->position.x - h.x) <= 4 && abs(player->position.z - h.z) <= 4) {
-            DrawRectangle(10, 180, 360, 24, Fade(BLACK, 0.6f));
-            DrawText("Press H to enter house arrest", 18, 184, 14, GOLD);
+            DrawRectangle(10, 215, 360, 24, Fade(BLACK, 0.6f));
+            DrawText("Press H to enter house arrest", 18, 219, 14, GOLD);
         }
     }
     if (player->gameComplete) {
@@ -187,6 +199,36 @@ void DrawHUD(Player *player, World *world, bool isFirstPerson) {
         int h = GetScreenHeight();
         DrawRectangle(0, 0, w, h, Fade(BLACK, 0.6f));
         DrawText("Arrived in Rome - House Arrest", w/2 - 170, h/2 - 10, 20, GOLD);
+    }
+
+    if (world->state.nearbyPreachNpcIndex != -1) {
+        NPC *npc = &world->state.npcs[world->state.nearbyPreachNpcIndex];
+        int promptW = 360;
+        int promptX = GetScreenWidth() / 2 - promptW / 2;
+        int promptY = GetScreenHeight() - 115;
+        DrawRectangle(promptX, promptY, promptW, 52, Fade(BLACK, 0.7f));
+        DrawRectangleLines(promptX, promptY, promptW, 52, GOLD);
+        DrawText(TextFormat("Hold E to preach the Gospel to %s", npc->name),
+                 promptX + 14, promptY + 8, 18, GOLD);
+
+        Color statusColor = world->state.nearbyPreachNpcSeesPlayer ? GREEN : ORANGE;
+        const char *statusText = world->state.nearbyPreachNpcSeesPlayer ?
+            "They are listening" : "Wait until they are looking at you";
+        DrawText(statusText, promptX + 14, promptY + 28, 14, statusColor);
+
+        DrawRectangle(promptX + 14, promptY + 44, promptW - 28, 6, DARKGRAY);
+        int holdWidth = (int)((float)(promptW - 28) * (player->preachHoldTimer / 3.0f));
+        if (holdWidth > promptW - 28) holdWidth = promptW - 28;
+        DrawRectangle(promptX + 14, promptY + 44, holdWidth, 6, LIME);
+    }
+
+    if (player->preachSuccessTimer > 0.0f) {
+        int msgW = 360;
+        int msgX = GetScreenWidth() / 2 - msgW / 2;
+        int msgY = 40;
+        DrawRectangle(msgX, msgY, msgW, 36, Fade(DARKGREEN, 0.85f));
+        DrawRectangleLines(msgX, msgY, msgW, 36, GOLD);
+        DrawText("The Gospel was received. Spirit increased.", msgX + 16, msgY + 10, 18, WHITE);
     }
 
     // QUEST LOG
