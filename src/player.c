@@ -125,8 +125,18 @@ void DrawPlayer(Player *player, Camera3D camera, bool drawShadow) {
                      90.0f,
                      Fade(BLACK, 0.12f));
     }
-    Vector3 pos = {player->lerpPosition.x, 0.75f, player->lerpPosition.z};
-    DrawBillboard(camera, spriteDatabase[SPRITE_PAUL], pos, 1.5f, WHITE);
+    if (paulModelLoaded) {
+        Vector3 pos = {player->lerpPosition.x, 0.0f, player->lerpPosition.z};
+        DrawModelEx(paulModel,
+                    Vector3Add(pos, paulModelOffset),
+                    (Vector3){0.0f, 1.0f, 0.0f},
+                    180.0f,
+                    paulModelScale,
+                    WHITE);
+    } else {
+        Vector3 pos = {player->lerpPosition.x, 0.75f, player->lerpPosition.z};
+        DrawBillboard(camera, spriteDatabase[SPRITE_PAUL], pos, 1.5f, WHITE);
+    }
 }
 
 bool AddToInventory(Player *player, int itemId) {

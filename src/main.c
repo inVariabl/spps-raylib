@@ -38,6 +38,10 @@ Model islanderModel = {0};
 bool islanderModelLoaded = false;
 Vector3 islanderModelScale = {1.0f, 1.0f, 1.0f};
 Vector3 islanderModelOffset = {0};
+Model paulModel = {0};
+bool paulModelLoaded = false;
+Vector3 paulModelScale = {1.0f, 1.0f, 1.0f};
+Vector3 paulModelOffset = {0};
 
 static void LoadModels(void) {
     if (FileExists("assets/snake.glb")) {
@@ -218,6 +222,31 @@ static void LoadModels(void) {
             -((bounds.min.z + bounds.max.z) * 0.5f) * scale
         };
     }
+
+    if (FileExists("assets/paul.glb")) {
+        paulModel = LoadModel("assets/paul.glb");
+        paulModelLoaded = paulModel.meshCount > 0;
+    }
+
+    if (paulModelLoaded) {
+        BoundingBox bounds = GetModelBoundingBox(paulModel);
+        float sizeX = bounds.max.x - bounds.min.x;
+        float sizeY = bounds.max.y - bounds.min.y;
+        float sizeZ = bounds.max.z - bounds.min.z;
+        float maxXZ = fmaxf(sizeX, sizeZ);
+        if (sizeY < 0.001f) sizeY = 1.0f;
+        if (maxXZ < 0.001f) maxXZ = 1.0f;
+
+        float scaleY = 1.9f / sizeY;
+        float scaleXZ = 1.4f / maxXZ;
+        float scale = fminf(scaleY, scaleXZ);
+        paulModelScale = (Vector3){scale, scale, scale};
+        paulModelOffset = (Vector3){
+            -((bounds.min.x + bounds.max.x) * 0.5f) * scale,
+            -(bounds.min.y * scale),
+            -((bounds.min.z + bounds.max.z) * 0.5f) * scale
+        };
+    }
 }
 
 static void UnloadModels(void) {
@@ -248,6 +277,10 @@ static void UnloadModels(void) {
     if (islanderModelLoaded) {
         UnloadModel(islanderModel);
         islanderModelLoaded = false;
+    }
+    if (paulModelLoaded) {
+        UnloadModel(paulModel);
+        paulModelLoaded = false;
     }
 }
 

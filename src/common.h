@@ -121,6 +121,10 @@ extern Model islanderModel;
 extern bool islanderModelLoaded;
 extern Vector3 islanderModelScale;
 extern Vector3 islanderModelOffset;
+extern Model paulModel;
+extern bool paulModelLoaded;
+extern Vector3 paulModelScale;
+extern Vector3 paulModelOffset;
 
 typedef struct {
     Vector3 lightDir;

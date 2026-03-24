@@ -18,7 +18,7 @@
 - [ ] fireworks?
 - [ ] coleseum glb model?
 - [ ] roman architecture models?
-- [ ] walk to house arrest
+- [x] walk to house arrest
 
 ## Graphics
-- [ ] press <F2> to turn on / off shaders. on by default
+- [x] press <F2> to turn on / off shaders. on by default
