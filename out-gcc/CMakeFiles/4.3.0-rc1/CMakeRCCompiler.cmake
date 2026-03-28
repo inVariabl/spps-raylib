@@ -1,0 +1,6 @@
+set(CMAKE_RC_COMPILER "C:/Users/Shaun/Downloads/gcc-15.2.0-gdb-16.3.90.20250511-binutils-2.45-mingw-w64-v13.0.0-ucrt/bin/windres.exe")
+set(CMAKE_RC_COMPILER_ARG1 "")
+set(CMAKE_RC_COMPILER_LOADED 1)
+set(CMAKE_RC_SOURCE_FILE_EXTENSIONS rc;RC)
+set(CMAKE_RC_OUTPUT_EXTENSION .obj)
+set(CMAKE_RC_COMPILER_ENV_VAR "RC")

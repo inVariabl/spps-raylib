@@ -1,0 +1,24 @@
+CMakeFiles/game.dir/src/player.c.obj: \
+ C:\Users\Shaun\OneDrive\Desktop\projects\spps-raylib\src\player.c \
+ C:\Users\Shaun\OneDrive\Desktop\projects\spps-raylib\src\player.h \
+ C:\Users\Shaun\OneDrive\Desktop\projects\spps-raylib\src\common.h \
+ C:/raylib/raylib/src/raylib.h \
+ C:/Users/Shaun/Downloads/gcc-15.2.0-gdb-16.3.90.20250511-binutils-2.45-mingw-w64-v13.0.0-ucrt/x86_64-w64-mingw32/lib/gcc/x86_64-w64-mingw32/15.2.0/include/stdarg.h \
+ C:/Users/Shaun/Downloads/gcc-15.2.0-gdb-16.3.90.20250511-binutils-2.45-mingw-w64-v13.0.0-ucrt/include/stdarg.h \
+ C:/Users/Shaun/Downloads/gcc-15.2.0-gdb-16.3.90.20250511-binutils-2.45-mingw-w64-v13.0.0-ucrt/include/_mingw_stdarg.h \
+ C:/Users/Shaun/Downloads/gcc-15.2.0-gdb-16.3.90.20250511-binutils-2.45-mingw-w64-v13.0.0-ucrt/include/vadefs.h \
+ C:/Users/Shaun/Downloads/gcc-15.2.0-gdb-16.3.90.20250511-binutils-2.45-mingw-w64-v13.0.0-ucrt/include/_mingw.h \
+ C:/Users/Shaun/Downloads/gcc-15.2.0-gdb-16.3.90.20250511-binutils-2.45-mingw-w64-v13.0.0-ucrt/include/_mingw_mac.h \
+ C:/Users/Shaun/Downloads/gcc-15.2.0-gdb-16.3.90.20250511-binutils-2.45-mingw-w64-v13.0.0-ucrt/include/_mingw_secapi.h \
+ C:/Users/Shaun/Downloads/gcc-15.2.0-gdb-16.3.90.20250511-binutils-2.45-mingw-w64-v13.0.0-ucrt/include/sdks/_mingw_ddk.h \
+ C:/Users/Shaun/Downloads/gcc-15.2.0-gdb-16.3.90.20250511-binutils-2.45-mingw-w64-v13.0.0-ucrt/x86_64-w64-mingw32/lib/gcc/x86_64-w64-mingw32/15.2.0/include/stdbool.h \
+ C:/raylib/raylib/src/raymath.h \
+ C:/Users/Shaun/Downloads/gcc-15.2.0-gdb-16.3.90.20250511-binutils-2.45-mingw-w64-v13.0.0-ucrt/include/math.h \
+ C:/Users/Shaun/Downloads/gcc-15.2.0-gdb-16.3.90.20250511-binutils-2.45-mingw-w64-v13.0.0-ucrt/include/crtdefs.h \
+ C:/Users/Shaun/Downloads/gcc-15.2.0-gdb-16.3.90.20250511-binutils-2.45-mingw-w64-v13.0.0-ucrt/include/corecrt.h \
+ C:/Users/Shaun/Downloads/gcc-15.2.0-gdb-16.3.90.20250511-binutils-2.45-mingw-w64-v13.0.0-ucrt/include/stdio.h \
+ C:/Users/Shaun/Downloads/gcc-15.2.0-gdb-16.3.90.20250511-binutils-2.45-mingw-w64-v13.0.0-ucrt/include/corecrt_stdio_config.h \
+ C:/Users/Shaun/Downloads/gcc-15.2.0-gdb-16.3.90.20250511-binutils-2.45-mingw-w64-v13.0.0-ucrt/include/_mingw_off_t.h \
+ C:/Users/Shaun/Downloads/gcc-15.2.0-gdb-16.3.90.20250511-binutils-2.45-mingw-w64-v13.0.0-ucrt/include/swprintf.inl \
+ C:/Users/Shaun/Downloads/gcc-15.2.0-gdb-16.3.90.20250511-binutils-2.45-mingw-w64-v13.0.0-ucrt/include/sec_api/stdio_s.h \
+ C:\Users\Shaun\OneDrive\Desktop\projects\spps-raylib\src\world.h

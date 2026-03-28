@@ -1,0 +1,3 @@
+C:/Users/Shaun/OneDrive/Desktop/projects/spps-raylib/out-gcc/CMakeFiles/game.dir
+C:/Users/Shaun/OneDrive/Desktop/projects/spps-raylib/out-gcc/CMakeFiles/edit_cache.dir
+C:/Users/Shaun/OneDrive/Desktop/projects/spps-raylib/out-gcc/CMakeFiles/rebuild_cache.dir

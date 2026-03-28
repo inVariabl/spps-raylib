@@ -1,0 +1,3 @@
+"C:\Program Files\CMake\bin\cmake.exe" -E rm -f CMakeFiles\game.dir/objects.a
+C:\Users\Shaun\Downloads\gcc-15.2.0-gdb-16.3.90.20250511-binutils-2.45-mingw-w64-v13.0.0-ucrt\bin\ar.exe qc CMakeFiles\game.dir/objects.a @CMakeFiles\game.dir\objects1.rsp
+C:\Users\Shaun\Downloads\gcc-15.2.0-gdb-16.3.90.20250511-binutils-2.45-mingw-w64-v13.0.0-ucrt\bin\gcc.exe -Wl,--whole-archive CMakeFiles\game.dir/objects.a -Wl,--no-whole-archive -o game.exe -Wl,--out-implib,libgame.dll.a -Wl,--major-image-version,0,--minor-image-version,0 @CMakeFiles\game.dir\linkLibs.rsp

@@ -1,4 +1,6 @@
 assets/
 
 .vscode
-out-gcc
+
+# commented out for now to keep strucutre
+# out-gcc
