@@ -2,12 +2,7 @@
 #define WORLD_H
 
 #include "common.h"
-
-typedef struct {
-    Vector3Int position;
-    const char *name;
-    bool active;
-} NPC;
+#include "npc.h"
 
 typedef struct {
     Vector3Int coords;
@@ -18,12 +13,17 @@ typedef struct {
 #define MAX_WATER_REGIONS 8
 #define MAX_PORTS 8
 #define MAX_LAND_POLY 8
+#define MAX_PROJECTILES 16
 
 typedef enum {
     WORLD_JUDEA = 0,
-    WORLD_MALTA,
-    WORLD_PUTEOLI,
-    WORLD_NONE
+    WORLD_MYRA = 1,
+    WORLD_FAIR_HAVENS = 2,
+    WORLD_MALTA = 3,
+    WORLD_SYRACUSE = 4,
+    WORLD_RHEGIUM = 5,
+    WORLD_PUTEOLI = 6,
+    WORLD_NONE = 7
 } WorldId;
 
 typedef struct {
@@ -39,6 +39,14 @@ typedef struct {
     int nextPortIndex; // -1 if none
     bool active;
 } Port;
+
+typedef struct {
+    Vector3 position;
+    Vector3 velocity;
+    float lifetime;
+    int damage;
+    bool active;
+} Projectile;
 
 #define MAX_DECORATIONS 200
 
@@ -66,6 +74,11 @@ typedef struct {
     bool hasSnake;
     Vector3Int houseArrestPos;
     bool hasHouseArrest;
+    bool playerSeenByPharisee;
+    int watchingPhariseeIndex;
+    int nearbyPreachNpcIndex;
+    bool nearbyPreachNpcSeesPlayer;
+    Projectile projectiles[MAX_PROJECTILES];
     Vector2 landPoly[MAX_LAND_POLY];
     int landPolyCount;
     int minX;
@@ -77,14 +90,18 @@ typedef struct {
 static const City worldMap[] = {
     {{0, 0, 0}, "Jerusalem", "The Holy City."},
     {{80, 0, 20}, "Sidon", "Port of departure."},
+    {{109, 0, 160}, "Myra", "Transfer to grain ship."},
+    {{109, 0, 260}, "Fair Havens", "Shelter at Crete."},
     {{109, 0, 430}, "Malta", "Shipwreck refuge."},
-    {{109, 0, 600}, "Puteoli", "Italian port."},
+    {{109, 0, 500}, "Syracuse", "Sicily stop."},
+    {{109, 0, 570}, "Rhegium", "Italian strait."},
+    {{109, 0, 560}, "Puteoli", "Italian port."},
     {{30, 0, 640}, "Forum of Appius", "First welcome on the road."},
     {{20, 0, 680}, "Three Taverns", "Second welcome on the road."},
     {{0, 0, 720}, "Rome", "The Imperial City."}
 };
 
-typedef struct {
+typedef struct World {
     WorldState state;
 } World;
 
@@ -93,10 +110,10 @@ typedef struct {
 void InitWorld(World *world);
 void LoadWorld(World *world, WorldId worldId);
 void UpdateWorld(World *world, Player *player);
-void DrawWorld(World *world, Camera3D camera, bool drawShadows);
+void DrawWorld(World *world, Camera3D camera);
 int GetClickedItem(World *world, Ray ray);
-int GetClickedDecoration(World *world, Ray ray);
 int GetClickedNPC(World *world, Ray ray);
+bool IsPlayerSeenByPharisee(World *world);
 bool IsTileBlocked(World *world, Vector3Int pos);
 bool IsWaterTile(World *world, Vector3Int pos);
 int GetPortAt(World *world, Vector3Int pos);
@@ -104,6 +121,6 @@ Vector3Int GetGridClicked(Ray ray);
 void FindPath(World *world, Player *player, Vector3Int target);
 
 void UpdatePlayer(Player *player, World *world, bool isFirstPerson);
-void DrawPlayer(Player *player, Camera3D camera, bool drawShadow);
+void DrawPlayer(Player *player, Camera3D camera);
 
 #endif // WORLD_H

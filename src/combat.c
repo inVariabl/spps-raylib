@@ -34,7 +34,7 @@ void UpdateCombat(CombatSession *session, Player *player) {
 
     if (session->attackTimer <= 0) {
         // Opponent attacks Paul's Spirit!
-        player->spirit -= 10;
+        DamagePlayerSpirit(player, 10);
         session->attackTimer = session->attackInterval; // Reset timer
     }
 
@@ -61,7 +61,7 @@ void UpdateCombat(CombatSession *session, Player *player) {
             }
         } else {
             // Wrong answer! Paul takes Spirit damage
-            player->spirit -= 15;
+            DamagePlayerSpirit(player, 15);
             session->attackTimer = session->attackInterval; // Reset timer to give another chance
         }
     }
@@ -72,11 +72,6 @@ void UpdateCombat(CombatSession *session, Player *player) {
     }
     if (player->spirit <= 0) {
         session->active = false;
-        // Game Over or Faint logic
-        player->spirit = 20; // For now, just reset a bit
-        player->position = (Vector3Int){0,0,0}; // Teleport to Jerusalem
-        player->target = player->position;
-        player->lerpPosition = (Vector3){0,0,0};
     }
 }
 

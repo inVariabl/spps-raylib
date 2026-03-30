@@ -78,7 +78,6 @@ typedef enum {
     DECO_COLUMN,
     DECO_FORUM_ARCH,
     DECO_FIRE_PIT,
-    DECO_FIRE_PIT_UNLIT,
     DECO_SNAKE,
     DECO_MARKET,
     DECO_COUNT
@@ -88,51 +87,10 @@ typedef enum {
     SPRITE_PAUL,
     SPRITE_SADDUCEE,
     SPRITE_ANANIAS,
-    SPRITE_LETTER,
     SPRITE_COUNT
 } SpriteType;
 
 extern Texture2D spriteDatabase[SPRITE_COUNT];
-extern Model snakeModel;
-extern bool snakeModelLoaded;
-extern Vector3 snakeModelScale;
-extern Vector3 snakeModelOffset;
-extern Model columnModel;
-extern bool columnModelLoaded;
-extern Vector3 columnModelScale;
-extern Vector3 columnModelOffset;
-extern Model templeModel;
-extern bool templeModelLoaded;
-extern Vector3 templeModelScale;
-extern Vector3 templeModelOffset;
-extern Model desertHouseModel;
-extern bool desertHouseModelLoaded;
-extern Vector3 desertHouseModelScale;
-extern Vector3 desertHouseModelOffset;
-extern Model sadduceeModel;
-extern bool sadduceeModelLoaded;
-extern Vector3 sadduceeModelScale;
-extern Vector3 sadduceeModelOffset;
-extern Model boatModel;
-extern bool boatModelLoaded;
-extern Vector3 boatModelScale;
-extern Vector3 boatModelOffset;
-extern Model islanderModel;
-extern bool islanderModelLoaded;
-extern Vector3 islanderModelScale;
-extern Vector3 islanderModelOffset;
-extern Model paulModel;
-extern bool paulModelLoaded;
-extern Vector3 paulModelScale;
-extern Vector3 paulModelOffset;
-
-typedef struct {
-    Vector3 lightDir;
-    Color lightColor;
-    float ambient;
-    float shadowBias;
-    bool showDebugUI;
-} ShaderSettings;
 
 // --- Global Constants ---
 static const ItemData itemDatabase[] = {
