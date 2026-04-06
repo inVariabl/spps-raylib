@@ -64,7 +64,9 @@ typedef struct {
 static const Quest questDatabase[] = {
     {0, "None", "", 0, 0, 0, 0},
     {1, "The Antioch Scroll", "Deliver the Jerusalem Scroll to Barnabas in Antioch.", 5, 5, 15, 500},
-    {2, "Tent for Damascus", "Bring a crafted Tent to Ananias in Damascus.", 6, 0, 10, 300}
+    {2, "Tent for Damascus", "Bring a crafted Tent to Ananias in Damascus.", 6, 0, 10, 300},
+    {3, "Rome Welcome", "Speak with all three Roman believers.", 0, 0, 0, 0},
+    {4, "House Arrest", "Report to the Roman centurion.", 0, 0, 0, 0}
 };
 
 typedef enum {

@@ -1,5 +1,6 @@
 #include "player.h"
 #include <stdio.h>
+#include <string.h>
 #include "world.h"
 
 void ResetPlayerMovement(Player *player, Vector3Int position) {
@@ -36,6 +37,8 @@ void InitPlayer(Player *player) {
     player->preachingNpcIndex = -1;
     player->preachHoldTimer = 0.0f;
     player->preachSuccessTimer = 0.0f;
+    player->worldMessage[0] = '\0';
+    player->worldMessageTimer = 0.0f;
 
     player->guardDialogueActive = false;
     player->guardDialogueStep = 0;
@@ -45,6 +48,8 @@ void InitPlayer(Player *player) {
     player->showInventory = true;
     player->showMap = true;
     player->gameComplete = false;
+    for (int i = 0; i < 3; i++) player->romeBelieversMet[i] = false;
+    player->romeCenturionMet = false;
 }
 
 void DamagePlayerSpirit(Player *player, int amount) {

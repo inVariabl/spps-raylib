@@ -222,7 +222,13 @@ static void UpdatePreaching(World *world, Player *player) {
 
     for (int i = 0; i < 20; i++) {
         NPC *npc = &world->state.npcs[i];
-        if (!npc->active || TextIsEqual(npc->name, "Pharisee") || TextIsEqual(npc->name, "Guard")) continue;
+        if (!npc->active ||
+            TextIsEqual(npc->name, "Pharisee") ||
+            TextIsEqual(npc->name, "Guard") ||
+            TextIsEqual(npc->name, "Roman Believer 1") ||
+            TextIsEqual(npc->name, "Roman Believer 2") ||
+            TextIsEqual(npc->name, "Roman Believer 3") ||
+            TextIsEqual(npc->name, "Centurion")) continue;
 
         float distance = Vector2Distance(
             (Vector2){npc->lerpPosition.x, npc->lerpPosition.z},
@@ -383,6 +389,8 @@ void LoadWorld(World *world, WorldId worldId) {
             world->state.decos[21] = (Decoration){(Vector3Int){100, 0, 420}, DECO_ROCK};
             world->state.decos[22] = (Decoration){(Vector3Int){109, 0, 418}, DECO_FIRE_PIT};
             world->state.decos[23] = (Decoration){(Vector3Int){109, 0, 418}, DECO_SNAKE};
+            InitNPC(&world->state.npcs[0], "Islander", (Vector3Int){112, 0, 420}, SPRITE_PAUL, true, 4);
+            InitNPC(&world->state.npcs[1], "Islander", (Vector3Int){106, 0, 415}, SPRITE_PAUL, true, 4);
             world->state.ports[0] = (Port){(Vector3Int){109, 0, 430}, "Malta", 0, true};
             world->state.portCount = 1;
             world->state.snakePos = (Vector3Int){109, 0, 418};
@@ -433,6 +441,10 @@ void LoadWorld(World *world, WorldId worldId) {
             world->state.decos[8] = (Decoration){(Vector3Int){20, 0, 670}, DECO_COLUMN};
             world->state.decos[9] = (Decoration){(Vector3Int){30, 0, 690}, DECO_TEMPLE};
             world->state.decos[10] = (Decoration){(Vector3Int){0, 0, 720}, DECO_HOUSE};
+            InitNPC(&world->state.npcs[0], "Roman Believer 1", (Vector3Int){82, 0, 602}, SPRITE_PAUL, false, 0);
+            InitNPC(&world->state.npcs[1], "Roman Believer 2", (Vector3Int){34, 0, 640}, SPRITE_ANANIAS, false, 0);
+            InitNPC(&world->state.npcs[2], "Roman Believer 3", (Vector3Int){18, 0, 680}, SPRITE_PAUL, false, 0);
+            InitNPC(&world->state.npcs[3], "Centurion", (Vector3Int){4, 0, 708}, SPRITE_SADDUCEE, false, 0);
             world->state.ports[0] = (Port){(Vector3Int){109, 0, 560}, "Puteoli", 0, true};
             world->state.portCount = 1;
             world->state.houseArrestPos = (Vector3Int){0, 0, 720};
@@ -493,6 +505,29 @@ void UpdateWorld(World *world, Player *player) {
         }
     } else {
         player->wantedDecayTimer = 0.0f;
+    }
+
+    if (world->state.worldId == WORLD_PUTEOLI && !player->gameComplete) {
+        bool allBelieversMet =
+            player->romeBelieversMet[0] &&
+            player->romeBelieversMet[1] &&
+            player->romeBelieversMet[2];
+
+        if (!allBelieversMet) {
+            if (player->questStates[3] != QUEST_COMPLETED) {
+                player->questStates[3] = QUEST_ACTIVE;
+                player->activeQuestId = 3;
+            }
+        } else {
+            player->questStates[3] = QUEST_COMPLETED;
+            if (!player->romeCenturionMet) {
+                player->questStates[4] = QUEST_ACTIVE;
+                player->activeQuestId = 4;
+            } else {
+                player->questStates[4] = QUEST_COMPLETED;
+                player->activeQuestId = 0;
+            }
+        }
     }
 
     UpdatePreaching(world, player);

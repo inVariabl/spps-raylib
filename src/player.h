@@ -28,6 +28,8 @@ typedef struct Player {
     int preachingNpcIndex;
     float preachHoldTimer;
     float preachSuccessTimer;
+    char worldMessage[160];
+    float worldMessageTimer;
 
     bool guardDialogueActive;
     int guardDialogueStep;
@@ -37,6 +39,8 @@ typedef struct Player {
     bool showInventory;
     bool showMap;
     bool gameComplete;
+    bool romeBelieversMet[3];
+    bool romeCenturionMet;
 
 } Player;
 

@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
+#include <string.h>
 
 typedef struct {
     const char *line;
@@ -61,6 +62,75 @@ static int GetNearbyGuardIndex(World *world, Player *player) {
     }
 
     return -1;
+}
+
+static int DrawWrappedTextBlock(const char *text, int x, int y, int fontSize, int maxWidth, int lineSpacing, Color color) {
+    char line[1024] = {0};
+    char word[256] = {0};
+    int lineCount = 0;
+    int wordLen = 0;
+    int lineLen = 0;
+
+    for (int i = 0;; i++) {
+        char c = text[i];
+        bool flushWord = (c == ' ' || c == '\n' || c == '\0');
+
+        if (!flushWord) {
+            if (wordLen < (int)sizeof(word) - 1) {
+                word[wordLen++] = c;
+            }
+            continue;
+        }
+
+        word[wordLen] = '\0';
+
+        if (wordLen > 0) {
+            char testLine[1024] = {0};
+
+            if (lineLen == 0) {
+                snprintf(testLine, sizeof(testLine), "%s", word);
+            } else {
+                snprintf(testLine, sizeof(testLine), "%s %s", line, word);
+            }
+
+            if (MeasureText(testLine, fontSize) > maxWidth && lineLen > 0) {
+                DrawText(line, x, y + lineCount * (fontSize + lineSpacing), fontSize, color);
+                lineCount++;
+                snprintf(line, sizeof(line), "%s", word);
+                lineLen = (int)strlen(line);
+            } else {
+                if (lineLen == 0) {
+                    snprintf(line, sizeof(line), "%s", word);
+                } else {
+                    strncat(line, " ", sizeof(line) - strlen(line) - 1);
+                    strncat(line, word, sizeof(line) - strlen(line) - 1);
+                }
+                lineLen = (int)strlen(line);
+            }
+        }
+
+        wordLen = 0;
+
+        if (c == '\n') {
+            if (lineLen > 0) {
+                DrawText(line, x, y + lineCount * (fontSize + lineSpacing), fontSize, color);
+                lineCount++;
+                line[0] = '\0';
+                lineLen = 0;
+            } else {
+                lineCount++;
+            }
+        }
+
+        if (c == '\0') break;
+    }
+
+    if (lineLen > 0) {
+        DrawText(line, x, y + lineCount * (fontSize + lineSpacing), fontSize, color);
+        lineCount++;
+    }
+
+    return lineCount;
 }
 
 void UpdateGuardDialogue(Player *player, World *world) {
@@ -181,7 +251,6 @@ void DrawHUD(Player *player, World *world, bool isFirstPerson) {
     DrawRectangle(10, 95, 220, 24, Fade(BLACK, 0.6f));
     DrawText(IsPlayerSeenByPharisee(world) ? "WATCHED: PHARISEE" : "WATCHED: CLEAR",
              18, 101, 14, IsPlayerSeenByPharisee(world) ? RED : GREEN);
-
     if (player->showMap) {
         int compassW = 400;
         int compassX = GetScreenWidth() / 2 - compassW / 2;
@@ -320,6 +389,15 @@ void DrawHUD(Player *player, World *world, bool isFirstPerson) {
         DrawText("The Gospel was received. Spirit increased.", msgX + 16, msgY + 10, 18, WHITE);
     }
 
+    if (player->worldMessageTimer > 0.0f && player->worldMessage[0] != '\0') {
+        int msgW = 660;
+        int msgX = GetScreenWidth() / 2 - msgW / 2;
+        int msgY = GetScreenHeight() - 165;
+        DrawRectangle(msgX, msgY, msgW, 42, Fade(BLACK, 0.8f));
+        DrawRectangleLines(msgX, msgY, msgW, 42, SKYBLUE);
+        DrawText(player->worldMessage, msgX + 14, msgY + 12, 18, WHITE);
+    }
+
     int questStartX = GetScreenWidth() - 220;
     int questStartY = GetScreenHeight() - 450;
     DrawRectangle(questStartX, questStartY, 200, 90, Fade(BLUE, 0.4f));
@@ -350,29 +428,40 @@ void DrawGuardDialogue(Player *player, World *world) {
         return;
     }
 
-    DrawRectangle(80, GetScreenHeight() - 280, GetScreenWidth() - 160, 220, Fade(BLACK, 0.90f));
-    DrawRectangleLines(80, GetScreenHeight() - 280, GetScreenWidth() - 160, 220, GOLD);
+    int boxX = 80;
+    int boxY = GetScreenHeight() - 280;
+    int boxW = GetScreenWidth() - 160;
+    int boxH = 220;
+    int textLeft = boxX + 25;
 
-    DrawText("ROMAN GUARD", 105, GetScreenHeight() - 255, 24, GOLD);
+    DrawRectangle(boxX, boxY, boxW, boxH, Fade(BLACK, 0.90f));
+    DrawRectangleLines(boxX, boxY, boxW, boxH, GOLD);
+    DrawText("ROMAN GUARD", textLeft, boxY + 20, 24, GOLD);
 
     if (player->guardClearedForShip) {
-        DrawText("\"Very well... perhaps you are telling the truth.\"", 105, GetScreenHeight() - 205, 24, WHITE);
-        DrawText("\"Make your way to the boat. You will sail for Malta.\"", 105, GetScreenHeight() - 165, 24, SKYBLUE);
-        DrawText("Press E, ENTER, or SPACE to continue.", 105, GetScreenHeight() - 110, 18, LIGHTGRAY);
+        DrawText("\"Very well... perhaps you are telling the truth.\"", textLeft, boxY + 75, 24, WHITE);
+        DrawText("\"Make your way to the boat. You will sail for Malta.\"", textLeft, boxY + 115, 24, SKYBLUE);
+        DrawText("Press E, ENTER, or SPACE to continue.", textLeft, boxY + 170, 18, LIGHTGRAY);
         return;
     }
 
     const GuardQuestion *q = &guardQuestions[player->guardDialogueStep];
+    int questionY = boxY + 62;
+    int questionFont = 18;
+    int questionMaxWidth = boxW - 50;
+    int questionLines = DrawWrappedTextBlock(q->line, textLeft, questionY, questionFont, questionMaxWidth, 4, WHITE);
+    int referenceY = questionY + questionLines * (questionFont + 4) + 6;
+    int answersY = referenceY + 28;
+    int answerSpacing = 23;
 
-    DrawText(q->line, 105, GetScreenHeight() - 210, 18, WHITE);
-    DrawText(q->reference, 105, GetScreenHeight() - 180, 16, SKYBLUE);
-
-    DrawText(q->answers[0], 120, GetScreenHeight() - 145, 18, GOLD);
-    DrawText(q->answers[1], 120, GetScreenHeight() - 120, 18, GOLD);
-    DrawText(q->answers[2], 120, GetScreenHeight() - 95, 18, GOLD);
-    DrawText(q->answers[3], 120, GetScreenHeight() - 70, 18, GOLD);
+    DrawText(q->reference, textLeft, referenceY, 16, SKYBLUE);
+    DrawText(q->answers[0], textLeft + 15, answersY, 18, GOLD);
+    DrawText(q->answers[1], textLeft + 15, answersY + answerSpacing, 18, GOLD);
+    DrawText(q->answers[2], textLeft + 15, answersY + answerSpacing * 2, 18, GOLD);
+    DrawText(q->answers[3], textLeft + 15, answersY + answerSpacing * 3, 18, GOLD);
 
     if (player->guardDialogueLastResult == 0) {
-        DrawText("Roman Guard: \"That is not correct. Answer carefully.\"", 700, GetScreenHeight() - 110, 18, RED);
+        DrawText("Roman Guard: \"That is not correct. Answer carefully.\"",
+                 boxX + boxW - 470, boxY + boxH - 50, 18, RED);
     }
 }

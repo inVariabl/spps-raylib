@@ -10,6 +10,64 @@
 
 Texture2D spriteDatabase[SPRITE_COUNT];
 
+static void ShowWorldMessage(Player *player, const char *text, float duration) {
+    snprintf(player->worldMessage, sizeof(player->worldMessage), "%s", text);
+    player->worldMessageTimer = duration;
+}
+
+static int CountRomeBelieversMet(const Player *player) {
+    int count = 0;
+    for (int i = 0; i < 3; i++) {
+        if (player->romeBelieversMet[i]) count++;
+    }
+    return count;
+}
+
+static void HandleRomeNpcInteraction(Player *player, World *world, const char *npcName) {
+    if (TextIsEqual(npcName, "Roman Believer 1")) {
+        if (!player->romeBelieversMet[0]) {
+            player->romeBelieversMet[0] = true;
+            player->spirit += 10;
+            if (player->spirit > player->maxSpirit) player->spirit = player->maxSpirit;
+        }
+        ShowWorldMessage(player, "Believer: 'Brother Paul, we came from Rome to meet you. We have prayed for you on the journey.'", 6.0f);
+        return;
+    }
+
+    if (TextIsEqual(npcName, "Roman Believer 2")) {
+        if (!player->romeBelieversMet[1]) {
+            player->romeBelieversMet[1] = true;
+            player->spirit += 10;
+            if (player->spirit > player->maxSpirit) player->spirit = player->maxSpirit;
+        }
+        ShowWorldMessage(player, "Believer: 'Take courage, Paul. The brothers in Rome thank God for your safe arrival.'", 6.0f);
+        return;
+    }
+
+    if (TextIsEqual(npcName, "Roman Believer 3")) {
+        if (!player->romeBelieversMet[2]) {
+            player->romeBelieversMet[2] = true;
+            player->spirit += 10;
+            if (player->spirit > player->maxSpirit) player->spirit = player->maxSpirit;
+        }
+        ShowWorldMessage(player, "Believer: 'The Lord has brought you here. Be encouraged, for you will still bear witness in Rome.'", 6.0f);
+        return;
+    }
+
+    if (TextIsEqual(npcName, "Centurion")) {
+        if (CountRomeBelieversMet(player) < 3) {
+            ShowWorldMessage(player, "Centurion: 'You may proceed when you have spoken with those who came to greet you on the road.'", 6.0f);
+            return;
+        }
+
+        player->romeCenturionMet = true;
+        player->questStates[4] = QUEST_COMPLETED;
+        player->activeQuestId = 0;
+        ResetPlayerMovement(player, world->state.houseArrestPos);
+        player->gameComplete = true;
+    }
+}
+
 static void MovePlayerToPort(Player *player, World *world, int portIdx) {
     Vector3Int p = world->state.ports[portIdx].position;
     ResetPlayerMovement(player, p);
@@ -70,6 +128,14 @@ int main() {
     SetTargetFPS(60);
 
     while (!WindowShouldClose()) {
+        if (player.worldMessageTimer > 0.0f) {
+            player.worldMessageTimer -= GetFrameTime();
+            if (player.worldMessageTimer <= 0.0f) {
+                player.worldMessageTimer = 0.0f;
+                player.worldMessage[0] = '\0';
+            }
+        }
+
         if (IsKeyPressed(KEY_F1)) {
             isFirstPerson = true;
             DisableCursor();
@@ -112,7 +178,6 @@ int main() {
             int npcIdx = GetClickedNPC(&world, ray);
             if (npcIdx != -1) {
                 const char *npcName = world.state.npcs[npcIdx].name;
-
                 if (TextIsEqual(npcName, "Pharisee")) {
                     if (player.questStates[1] == QUEST_NOT_STARTED) {
                         player.activeQuestId = 1;
@@ -130,8 +195,23 @@ int main() {
                         player.activeQuestId = 2;
                         player.questStates[2] = QUEST_ACTIVE;
                     }
+                } else if (TextIsEqual(npcName, "Islander")) {
+                    bool nearSnake =
+                        abs(player.position.x - world.state.snakePos.x) <= 6 &&
+                        abs(player.position.z - world.state.snakePos.z) <= 6;
+
+                    if (world.state.worldId == WORLD_MALTA && nearSnake) {
+                        ShowWorldMessage(&player, "Islander: 'He must be a god! He suffered no harm!'", 5.0f);
+                    } else {
+                        ShowWorldMessage(&player, "Islander: 'No doubt this man is a murderer, for justice has not allowed him to live.'", 5.0f);
+                    }
                 } else if (TextIsEqual(npcName, "Guard")) {
                     // Guard uses the E-key dialogue system.
+                } else if (TextIsEqual(npcName, "Roman Believer 1") ||
+                           TextIsEqual(npcName, "Roman Believer 2") ||
+                           TextIsEqual(npcName, "Roman Believer 3") ||
+                           TextIsEqual(npcName, "Centurion")) {
+                    HandleRomeNpcInteraction(&player, &world, npcName);
                 } else {
                     StartCombat(&combat, npcName);
                 }
@@ -171,15 +251,6 @@ int main() {
             if (!player.guardDialogueActive && IsKeyPressed(KEY_C)) TryCraftTent(&player);
             if (!player.guardDialogueActive && IsKeyPressed(KEY_I)) player.showInventory = !player.showInventory;
             if (!player.guardDialogueActive && IsKeyPressed(KEY_M)) player.showMap = !player.showMap;
-
-            if (!player.gameComplete && world.state.hasHouseArrest && !player.guardDialogueActive) {
-                Vector3Int h = world.state.houseArrestPos;
-                if (abs(player.position.x - h.x) <= 3 && abs(player.position.z - h.z) <= 3) {
-                    if (IsKeyPressed(KEY_H)) {
-                        player.gameComplete = true;
-                    }
-                }
-            }
         }
 
         BeginDrawing();
@@ -210,8 +281,10 @@ int main() {
 
         if (combat.active) DrawCombatUI(&combat, GetScreenWidth(), GetScreenHeight());
 
-        DrawText("Point & Click to move across the Mediterranean", 10, GetScreenHeight() - 45, 15, WHITE);
-        DrawFPS(10, GetScreenHeight() - 25);
+        if (!player.gameComplete) {
+            DrawText("Point & Click to move across the Mediterranean", 10, GetScreenHeight() - 45, 15, WHITE);
+            DrawFPS(10, GetScreenHeight() - 25);
+        }
 
         EndDrawing();
     }
