@@ -64,7 +64,9 @@ typedef struct {
 static const Quest questDatabase[] = {
     {0, "None", "", 0, 0, 0, 0},
     {1, "The Antioch Scroll", "Deliver the Jerusalem Scroll to Barnabas in Antioch.", 5, 5, 15, 500},
-    {2, "Tent for Damascus", "Bring a crafted Tent to Ananias in Damascus.", 6, 0, 10, 300}
+    {2, "Tent for Damascus", "Bring a crafted Tent to Ananias in Damascus.", 6, 0, 10, 300},
+    {3, "Rome Welcome", "Speak with all three Roman believers.", 0, 0, 0, 0},
+    {4, "House Arrest", "Report to the Roman centurion.", 0, 0, 0, 0}
 };
 
 typedef enum {
@@ -125,6 +127,14 @@ extern Model paulModel;
 extern bool paulModelLoaded;
 extern Vector3 paulModelScale;
 extern Vector3 paulModelOffset;
+extern Model romanCharacterModel;
+extern bool romanCharacterModelLoaded;
+extern Vector3 romanCharacterModelScale;
+extern Vector3 romanCharacterModelOffset;
+extern Model romanSoldierModel;
+extern bool romanSoldierModelLoaded;
+extern Vector3 romanSoldierModelScale;
+extern Vector3 romanSoldierModelOffset;
 
 typedef struct {
     Vector3 lightDir;

@@ -6,6 +6,7 @@
 #include "ui.h"
 #include "combat.h"
 #include "scripture.h"
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -42,6 +43,87 @@ Model paulModel = {0};
 bool paulModelLoaded = false;
 Vector3 paulModelScale = {1.0f, 1.0f, 1.0f};
 Vector3 paulModelOffset = {0};
+Model romanCharacterModel = {0};
+bool romanCharacterModelLoaded = false;
+Vector3 romanCharacterModelScale = {1.0f, 1.0f, 1.0f};
+Vector3 romanCharacterModelOffset = {0};
+Model romanSoldierModel = {0};
+bool romanSoldierModelLoaded = false;
+Vector3 romanSoldierModelScale = {1.0f, 1.0f, 1.0f};
+Vector3 romanSoldierModelOffset = {0};
+
+static void ShowWorldMessage(Player *player, const char *text, float duration) {
+    snprintf(player->worldMessage, sizeof(player->worldMessage), "%s", text);
+    player->worldMessageTimer = duration;
+}
+
+static bool HasDecorationType(const World *world, DecorationType type) {
+    for (int i = 0; i < MAX_DECORATIONS; i++) {
+        if (world->state.decos[i].type == type) return true;
+    }
+    return false;
+}
+
+static bool IsMaltaFireLit(const World *world) {
+    return HasDecorationType(world, DECO_FIRE_PIT);
+}
+
+static bool IsMaltaSnakeResolved(const World *world) {
+    return IsMaltaFireLit(world) && !HasDecorationType(world, DECO_SNAKE);
+}
+
+static int CountRomeBelieversMet(const Player *player) {
+    int count = 0;
+    for (int i = 0; i < 3; i++) {
+        if (player->romeBelieversMet[i]) count++;
+    }
+    return count;
+}
+
+static void HandleRomeNpcInteraction(Player *player, World *world, const char *npcName) {
+    if (TextIsEqual(npcName, "Roman Believer 1")) {
+        if (!player->romeBelieversMet[0]) {
+            player->romeBelieversMet[0] = true;
+            player->spirit += 10;
+            if (player->spirit > player->maxSpirit) player->spirit = player->maxSpirit;
+        }
+        ShowWorldMessage(player, "Believer: 'Brother Paul, we came from Rome to meet you. We have prayed for you on the journey.'", 6.0f);
+        return;
+    }
+
+    if (TextIsEqual(npcName, "Roman Believer 2")) {
+        if (!player->romeBelieversMet[1]) {
+            player->romeBelieversMet[1] = true;
+            player->spirit += 10;
+            if (player->spirit > player->maxSpirit) player->spirit = player->maxSpirit;
+        }
+        ShowWorldMessage(player, "Believer: 'Take courage, Paul. The brothers in Rome thank God for your safe arrival.'", 6.0f);
+        return;
+    }
+
+    if (TextIsEqual(npcName, "Roman Believer 3")) {
+        if (!player->romeBelieversMet[2]) {
+            player->romeBelieversMet[2] = true;
+            player->spirit += 10;
+            if (player->spirit > player->maxSpirit) player->spirit = player->maxSpirit;
+        }
+        ShowWorldMessage(player, "Believer: 'The Lord has brought you here. Be encouraged, for you will still bear witness in Rome.'", 6.0f);
+        return;
+    }
+
+    if (TextIsEqual(npcName, "Centurion")) {
+        if (CountRomeBelieversMet(player) < 3) {
+            ShowWorldMessage(player, "Centurion: 'You may proceed when you have spoken with those who came to greet you on the road.'", 6.0f);
+            return;
+        }
+
+        player->romeCenturionMet = true;
+        player->questStates[4] = QUEST_COMPLETED;
+        player->activeQuestId = 0;
+        ResetPlayerMovement(player, world->state.houseArrestPos);
+        player->gameComplete = true;
+    }
+}
 
 static void LoadModels(void) {
     if (FileExists("assets/snake.glb")) {
@@ -247,6 +329,56 @@ static void LoadModels(void) {
             -((bounds.min.z + bounds.max.z) * 0.5f) * scale
         };
     }
+
+    if (FileExists("assets/roman_character.glb")) {
+        romanCharacterModel = LoadModel("assets/roman_character.glb");
+        romanCharacterModelLoaded = romanCharacterModel.meshCount > 0;
+    }
+
+    if (romanCharacterModelLoaded) {
+        BoundingBox bounds = GetModelBoundingBox(romanCharacterModel);
+        float sizeX = bounds.max.x - bounds.min.x;
+        float sizeY = bounds.max.y - bounds.min.y;
+        float sizeZ = bounds.max.z - bounds.min.z;
+        float maxXZ = fmaxf(sizeX, sizeZ);
+        if (sizeY < 0.001f) sizeY = 1.0f;
+        if (maxXZ < 0.001f) maxXZ = 1.0f;
+
+        float scaleY = 1.85f / sizeY;
+        float scaleXZ = 1.25f / maxXZ;
+        float scale = fminf(scaleY, scaleXZ);
+        romanCharacterModelScale = (Vector3){scale, scale, scale};
+        romanCharacterModelOffset = (Vector3){
+            -((bounds.min.x + bounds.max.x) * 0.5f) * scale,
+            -(bounds.min.y * scale),
+            -((bounds.min.z + bounds.max.z) * 0.5f) * scale
+        };
+    }
+
+    if (FileExists("assets/roman_soldier.glb")) {
+        romanSoldierModel = LoadModel("assets/roman_soldier.glb");
+        romanSoldierModelLoaded = romanSoldierModel.meshCount > 0;
+    }
+
+    if (romanSoldierModelLoaded) {
+        BoundingBox bounds = GetModelBoundingBox(romanSoldierModel);
+        float sizeX = bounds.max.x - bounds.min.x;
+        float sizeY = bounds.max.y - bounds.min.y;
+        float sizeZ = bounds.max.z - bounds.min.z;
+        float maxXZ = fmaxf(sizeX, sizeZ);
+        if (sizeY < 0.001f) sizeY = 1.0f;
+        if (maxXZ < 0.001f) maxXZ = 1.0f;
+
+        float scaleY = 1.95f / sizeY;
+        float scaleXZ = 1.25f / maxXZ;
+        float scale = fminf(scaleY, scaleXZ);
+        romanSoldierModelScale = (Vector3){scale, scale, scale};
+        romanSoldierModelOffset = (Vector3){
+            -((bounds.min.x + bounds.max.x) * 0.5f) * scale,
+            -(bounds.min.y * scale),
+            -((bounds.min.z + bounds.max.z) * 0.5f) * scale
+        };
+    }
 }
 
 static void UnloadModels(void) {
@@ -282,20 +414,40 @@ static void UnloadModels(void) {
         UnloadModel(paulModel);
         paulModelLoaded = false;
     }
+    if (romanCharacterModelLoaded) {
+        UnloadModel(romanCharacterModel);
+        romanCharacterModelLoaded = false;
+    }
+    if (romanSoldierModelLoaded) {
+        UnloadModel(romanSoldierModel);
+        romanSoldierModelLoaded = false;
+    }
 }
 
 static void MovePlayerToPort(Player *player, World *world, int portIdx) {
     Vector3Int p = world->state.ports[portIdx].position;
-    player->position = p;
-    player->target = p;
-    player->finalTarget = p;
-    player->pathSize = 0;
-    player->pathIndex = 0;
-    player->lerpPosition = (Vector3){(float)p.x, 0.0f, (float)p.z};
+    ResetPlayerMovement(player, p);
 }
 
 static void HandlePortTravel(Player *player, World *world, int portIdx) {
     if (world->state.nextWorldId == WORLD_NONE) return;
+    if (world->state.worldId == WORLD_JUDEA && !player->guardClearedForShip) return;
+
+    const char *voyageCmd = NULL;
+    if (FileExists("./voyage")) voyageCmd = "./voyage";
+    else if (FileExists("./out/voyage")) voyageCmd = "./out/voyage";
+
+    if (voyageCmd == NULL) {
+        ShowWorldMessage(player, "Voyage binary missing. Build it first with ./build or cmake --build out.", 6.0f);
+        return;
+    }
+
+    int result = system(voyageCmd);
+    if (result != 0) {
+        ShowWorldMessage(player, "The voyage failed. You return to shore and remain in the current port.", 5.0f);
+        return;
+    }
+
     LoadWorld(world, world->state.nextWorldId);
     if (world->state.portCount > 0) {
         MovePlayerToPort(player, world, 0);
@@ -333,17 +485,14 @@ int main() {
     Player player = {0};
     World world = {0};
     CombatSession combat = {0};
-
     bool isFirstPerson = false;
-    bool shadersEnabled = false; // Start with shaders off; F2 still toggles them.
-    
-    // Shadow Mapping Resources
+    bool shadersEnabled = false;
+
     Shader shadowShader = {0};
     Shader depthShader = {0};
     RenderTexture2D shadowMap = {0};
     const int SHADOW_MAP_SIZE = 1024;
-    
-    // Shader Settings
+
     ShaderSettings settings = {
         .lightDir = (Vector3){0.0f, 1.0f, 0.0f},
         .lightColor = WHITE,
@@ -352,7 +501,6 @@ int main() {
         .showDebugUI = false
     };
 
-    // Load settings if exist
     FILE *f = fopen("shader_settings.txt", "r");
     if (f) {
         int r, g, b;
@@ -363,26 +511,17 @@ int main() {
         fscanf(f, "%f", &settings.shadowBias);
         fclose(f);
     }
-    
-    char message[256] = {0};
-    float messageTimer = 0.0f;
+
     float snakeEventTimer = 0.0f;
 
-    // 2. Initialization
     InitWindow(screenWidth, screenHeight, "RayScape - Paul's Journeys");
     LoadSprites();
     LoadModels();
-
-    // Initialize Shaders and Shadow Map
     shadowShader = LoadShader("shaders/shadow.vs", "shaders/shadow.fs");
     depthShader = LoadShader("shaders/depth.vs", "shaders/depth.fs");
     shadowMap = LoadRenderTexture(SHADOW_MAP_SIZE, SHADOW_MAP_SIZE);
 
-    // Set shadow map texture slot
     int shadowMapLoc = GetShaderLocation(shadowShader, "shadowMap");
-    // We will set this manually in the loop just to be safe, but usually texture1
-
-    // Get uniform locations
     shadowShader.locs[SHADER_LOC_VECTOR_VIEW] = GetShaderLocation(shadowShader, "viewPos");
     int lightDirLoc = GetShaderLocation(shadowShader, "lightDir");
     int lightColorLoc = GetShaderLocation(shadowShader, "lightColor");
@@ -390,16 +529,12 @@ int main() {
     int shadowBiasLoc = GetShaderLocation(shadowShader, "shadowBias");
     int lightVPLoc = GetShaderLocation(shadowShader, "lightVP");
     int shadowMapSizeLoc = GetShaderLocation(shadowShader, "shadowMapSize");
-    
-    // Set constant uniforms (Initial values)
+
     float smSize = (float)SHADOW_MAP_SIZE;
     SetShaderValue(shadowShader, shadowMapSizeLoc, &smSize, SHADER_UNIFORM_FLOAT);
 
-    // Initialize remaining game state
     InitPlayer(&player);
     InitWorld(&world);
-
-    // Fixed isometric-style Camera
     camera.position = (Vector3){8.0f, 8.0f, 8.0f};
     camera.target = (Vector3){0.0f, 0.0f, 0.0f};
     camera.up = (Vector3){0.0f, 1.0f, 0.0f};
@@ -408,35 +543,32 @@ int main() {
 
     SetTargetFPS(60);
 
-    // --- Main Loop ---
     while (!WindowShouldClose()) {
-        if (messageTimer > 0) messageTimer -= GetFrameTime();
-        
-        if (snakeEventTimer > 0) {
-            snakeEventTimer -= GetFrameTime();
-            if (snakeEventTimer <= 0) {
-                if (player.questStates[3] == QUEST_ACTIVE) {
-                    player.questStates[3] = QUEST_COMPLETED;
-                    // Remove snake
-                    for(int i=0; i<MAX_DECORATIONS; i++) {
-                         if(world.state.decos[i].type == DECO_SNAKE) {
-                             world.state.decos[i].type = DECO_NONE;
-                         }
-                    }
-                    snprintf(message, sizeof(message), "You shake off the creature into the fire and suffer no harm.");
-                    messageTimer = 5.0f;
-                }
+        if (player.worldMessageTimer > 0.0f) {
+            player.worldMessageTimer -= GetFrameTime();
+            if (player.worldMessageTimer <= 0.0f) {
+                player.worldMessageTimer = 0.0f;
+                player.worldMessage[0] = '\0';
             }
         }
 
-        // Handle perspective switching
+        if (snakeEventTimer > 0.0f) {
+            snakeEventTimer -= GetFrameTime();
+            if (snakeEventTimer <= 0.0f && world.state.worldId == WORLD_MALTA) {
+                for (int i = 0; i < MAX_DECORATIONS; i++) {
+                    if (world.state.decos[i].type == DECO_SNAKE) {
+                        world.state.decos[i].type = DECO_NONE;
+                    }
+                }
+                ShowWorldMessage(&player, "You shake off the creature into the fire and suffer no harm.", 5.0f);
+            }
+        }
+
         if (IsKeyPressed(KEY_F1)) {
             isFirstPerson = true;
             DisableCursor();
         }
-        if (IsKeyPressed(KEY_F2)) {
-            shadersEnabled = !shadersEnabled;
-        }
+        if (IsKeyPressed(KEY_F2)) shadersEnabled = !shadersEnabled;
         if (IsKeyPressed(KEY_F3)) {
             isFirstPerson = false;
             EnableCursor();
@@ -446,18 +578,14 @@ int main() {
             if (settings.showDebugUI) EnableCursor();
         }
 
-        // --- CAMERA UPDATE ---
         if (isFirstPerson) {
-            // Mouse rotation
             Vector2 delta = GetMouseDelta();
             player.yaw -= delta.x * 0.005f;
             player.pitch += delta.y * -0.005f;
-            if (player.pitch > PI/2.5f) player.pitch = PI/2.5f;
-            if (player.pitch < -PI/2.5f) player.pitch = -PI/2.5f;
+            if (player.pitch > PI / 2.5f) player.pitch = PI / 2.5f;
+            if (player.pitch < -PI / 2.5f) player.pitch = -PI / 2.5f;
 
-            // Camera at player position, looking towards yaw/pitch
             camera.position = (Vector3){player.lerpPosition.x, 1.6f, player.lerpPosition.z};
-            
             Vector3 look = {
                 cosf(player.pitch) * sinf(player.yaw),
                 sinf(player.pitch),
@@ -466,87 +594,65 @@ int main() {
             camera.target = Vector3Add(camera.position, look);
             camera.fovy = 60.0f;
         } else {
-            // 3rd Person (Runescape Style)
             camera.target = player.lerpPosition;
             camera.position = (Vector3){player.lerpPosition.x + 8.0f, 8.0f, player.lerpPosition.z + 8.0f};
             camera.fovy = 45.0f;
         }
 
-        // 2. Logic: Interaction
-        if (!settings.showDebugUI && !combat.active && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
-            Ray ray;
-            if (isFirstPerson) {
-                ray = GetMouseRay((Vector2){(float)GetScreenWidth()/2, (float)GetScreenHeight()/2}, camera);
-            } else {
-                ray = GetMouseRay(GetMousePosition(), camera);
-            }
-            
-            // Check NPC first
-            int npcIdx = GetClickedNPC(&world, ray);
-            if (npcIdx != -1) {
-                const char *npcName = world.state.npcs[npcIdx].name;
-                
-                if (TextIsEqual(npcName, "Sadducee")) {
-                    if (player.questStates[1] == QUEST_NOT_STARTED) {
-                        player.activeQuestId = 1;
-                        player.questStates[1] = QUEST_ACTIVE;
-                    } else if (player.questStates[1] == QUEST_ACTIVE && player.position.x == 75 && player.position.z == 250) {
-                        player.questStates[1] = QUEST_COMPLETED;
-                        player.activeQuestId = 0;
-                        player.skills[SKILL_ORATORY].currentXp += 500;
-                    } else {
+        if (!settings.showDebugUI && !combat.active && !player.guardDialogueActive && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+                Ray ray = isFirstPerson
+                    ? GetMouseRay((Vector2){(float)GetScreenWidth() / 2, (float)GetScreenHeight() / 2}, camera)
+                    : GetMouseRay(GetMousePosition(), camera);
+
+                int npcIdx = GetClickedNPC(&world, ray);
+                if (npcIdx != -1) {
+                    const char *npcName = world.state.npcs[npcIdx].name;
+
+                    if (TextIsEqual(npcName, "Pharisee")) {
                         StartCombat(&combat, npcName);
-                    }
-                } else if (TextIsEqual(npcName, "Ananias")) {
-                    if (player.questStates[2] == QUEST_NOT_STARTED) {
-                        player.activeQuestId = 2;
-                        player.questStates[2] = QUEST_ACTIVE;
-                    }
-                } else if (TextIsEqual(npcName, "Islander")) {
-                    if (player.questStates[3] == QUEST_COMPLETED) {
-                        snprintf(message, sizeof(message), "Islander: 'He must be a god! He suffered no harm!'");
+                    } else if (TextIsEqual(npcName, "Islander")) {
+                        bool nearSnake =
+                            abs(player.position.x - world.state.snakePos.x) <= 6 &&
+                            abs(player.position.z - world.state.snakePos.z) <= 6;
+                        if (world.state.worldId == WORLD_MALTA && nearSnake && IsMaltaSnakeResolved(&world)) {
+                            ShowWorldMessage(&player, "Islander: 'He must be a god! He suffered no harm!'", 5.0f);
+                        } else {
+                            ShowWorldMessage(&player, "Islander: 'No doubt this man is a murderer, for justice has not allowed him to live.'", 5.0f);
+                        }
+                    } else if (TextIsEqual(npcName, "Guard")) {
+                    } else if (TextIsEqual(npcName, "Roman Believer 1") ||
+                               TextIsEqual(npcName, "Roman Believer 2") ||
+                               TextIsEqual(npcName, "Roman Believer 3") ||
+                               TextIsEqual(npcName, "Centurion")) {
+                        HandleRomeNpcInteraction(&player, &world, npcName);
                     } else {
-                         snprintf(message, sizeof(message), "Islander: 'No doubt this man is a murderer, for justice has not allowed him to live.'");
+                        ShowWorldMessage(&player, TextFormat("%s pauses as you approach.", npcName), 3.0f);
                     }
-                    messageTimer = 5.0f;
                 } else {
-                    StartCombat(&combat, npcName);
-                }
-            } else {
-                // Check Ground Item
-                int itemIdx = GetClickedItem(&world, ray);
-                int decoIdx = GetClickedDecoration(&world, ray);
-                
-                if (itemIdx != -1) {
-                    if (AddToInventory(&player, world.state.items[itemIdx].itemId)) {
-                        world.state.items[itemIdx].active = false;
-                    }
-                } else if (decoIdx != -1) {
-                    if (world.state.decos[decoIdx].type == DECO_FIRE_PIT_UNLIT) { // Changed from DECO_FIRE_PIT
-                        if (player.questStates[3] == QUEST_NOT_STARTED) {
-                            player.questStates[3] = QUEST_ACTIVE;
-                            // Change fire pit to lit state
+                    int itemIdx = GetClickedItem(&world, ray);
+                    int decoIdx = GetClickedDecoration(&world, ray);
+
+                    if (itemIdx != -1) {
+                        if (AddToInventory(&player, world.state.items[itemIdx].itemId)) {
+                            world.state.items[itemIdx].active = false;
+                        }
+                    } else if (decoIdx != -1) {
+                        if (world.state.decos[decoIdx].type == DECO_FIRE_PIT_UNLIT) {
                             world.state.decos[decoIdx].type = DECO_FIRE_PIT;
-                            // Reveal snake
-                            for(int i=0; i<MAX_DECORATIONS; i++) {
-                                if(world.state.decos[i].position.x == world.state.snakePos.x && 
-                                   world.state.decos[i].position.z == world.state.snakePos.z &&
-                                   world.state.decos[i].type == DECO_NONE) {
+                            for (int i = 0; i < MAX_DECORATIONS; i++) {
+                                if (world.state.decos[i].position.x == world.state.snakePos.x &&
+                                    world.state.decos[i].position.z == world.state.snakePos.z &&
+                                    world.state.decos[i].type == DECO_NONE) {
                                     world.state.decos[i].type = DECO_SNAKE;
                                     break;
                                 }
                             }
-                            snprintf(message, sizeof(message), "A viper fastens on your hand! The islanders watch closely...");
-                            messageTimer = 5.0f;
+                            ShowWorldMessage(&player, "A viper fastens on your hand! The islanders watch closely...", 5.0f);
                             snakeEventTimer = 8.0f;
-                        } else {
-                             snprintf(message, sizeof(message), "The fire burns warmly.");
-                             messageTimer = 3.0f;
+                        } else if (world.state.decos[decoIdx].type == DECO_FIRE_PIT) {
+                            ShowWorldMessage(&player, "The fire burns warmly.", 3.0f);
                         }
-                    }
-                } else {
-                    // Otherwise move player to grid clicked
-                    if (!isFirstPerson) {
+                    } else if (!isFirstPerson) {
                         Vector3Int gridClick = GetGridClicked(ray);
                         if (gridClick.y != -1) {
                             FindPath(&world, &player, gridClick);
@@ -554,46 +660,35 @@ int main() {
                     }
                 }
             }
-        }
 
         if (combat.active) {
             UpdateCombat(&combat, &player);
         } else {
+            UpdateGuardDialogue(&player, &world);
+
             int portIdx = GetPortAt(&world, player.position);
-            if (portIdx != -1 && IsKeyPressed(KEY_T)) {
-                if (world.state.worldId == WORLD_MALTA && player.questStates[3] != QUEST_COMPLETED) {
-                    snprintf(message, sizeof(message), "Captain: 'We must wait for the winter storms to pass.'");
-                    messageTimer = 4.0f;
+            if (portIdx != -1 && IsKeyPressed(KEY_T) && !player.guardDialogueActive) {
+                if (world.state.worldId == WORLD_MALTA && !IsMaltaSnakeResolved(&world)) {
+                    ShowWorldMessage(&player, "Captain: 'We must wait for the winter storms to pass.'", 4.0f);
                 } else {
                     HandlePortTravel(&player, &world, portIdx);
                 }
             }
 
-            if (!player.gameComplete) {
+            if (!player.gameComplete && !player.guardDialogueActive) {
                 UpdatePlayer(&player, &world, isFirstPerson);
             }
             UpdateWorld(&world, &player);
-            
-            // Key Bindings
-            if (IsKeyPressed(KEY_C)) TryCraftTent(&player);
-            if (IsKeyPressed(KEY_I)) player.showInventory = !player.showInventory;
-            if (IsKeyPressed(KEY_M)) player.showMap = !player.showMap;
 
-            if (!player.gameComplete && world.state.hasHouseArrest) {
-                Vector3Int h = world.state.houseArrestPos;
-                if (abs(player.position.x - h.x) <= 3 && abs(player.position.z - h.z) <= 3) {
-                    if (IsKeyPressed(KEY_H)) {
-                        player.gameComplete = true;
-                    }
-                }
-            }
+            if (!player.guardDialogueActive && IsKeyPressed(KEY_C)) TryCraftTent(&player);
+            if (!player.guardDialogueActive && IsKeyPressed(KEY_I)) player.showInventory = !player.showInventory;
+            if (!player.guardDialogueActive && IsKeyPressed(KEY_M)) player.showMap = !player.showMap;
         }
 
-        // --- SHADOW MAPPING ---
-        // 1. Calculate Light View-Projection Matrix
+        BeginDrawing();
         Matrix lightView;
         Matrix lightProj;
-        float shadowBoxSize = 60.0f; // Increased size
+        float shadowBoxSize = 60.0f;
         Vector3 lightDir = settings.lightDir;
         if (Vector3LengthSqr(lightDir) < 0.0001f) lightDir = (Vector3){0.0f, 1.0f, 0.0f};
         lightDir = Vector3Normalize(lightDir);
@@ -603,77 +698,47 @@ int main() {
         Vector3 lightUp = fabsf(Vector3DotProduct(lightDir, (Vector3){0, 1, 0})) > 0.98f
                         ? (Vector3){0, 0, 1}
                         : (Vector3){0, 1, 0};
-        
-        // Ensure light follows the camera/player
         Vector3 lightCamPos = Vector3Add(center, lightPos);
         lightView = MatrixLookAt(lightCamPos, center, lightUp);
         lightProj = MatrixOrtho(-shadowBoxSize, shadowBoxSize, -shadowBoxSize, shadowBoxSize, 1.0f, 150.0f);
-        
-        // MVP = P * V * M. So VP = P * V.
-        Matrix lightVP = MatrixMultiply(lightView, lightProj); // Raylib's MatrixMultiply might behave as V * P effectively due to layout? 
-        // Actually, let's stick to standard P * V.
-        // Wait, if I use MatrixMultiply(lightView, lightProj), that is V * P.
-        // If the shader expects P * V * pos, I should use MatrixMultiply(lightProj, lightView).
-        // However, many Raylib examples use V * P order for some reason. 
-        // Let's try the standard P * V first.
-        lightVP = MatrixMultiply(lightView, lightProj); 
-        // Wait, I will use the one that matches Raylib's internal mvp calculation.
-        // Raylib uses: matModelView = matView * matModel; matModelViewProjection = matProjection * matModelView;
-        // So P * V * M.
-        // So I need P * V.
-        // So MatrixMultiply(lightProj, lightView).
-        lightVP = MatrixMultiply(lightView, lightProj); // I'll trust the previous code's order but fix the Projection mismatch first. 
-        // Actually, let's try swapping it because V*P is definitely wrong for MVP * pos.
-        lightVP = MatrixMultiply(lightProj, lightView); // Swapped to P * V
+        Matrix lightVP = MatrixMultiply(lightProj, lightView);
 
-        // 2. Render Depth Map (Pass 1)
         if (shadersEnabled) {
             BeginTextureMode(shadowMap);
-                ClearBackground(WHITE); // Far plane depth is 1.0 (White)
-                BeginMode3D((Camera3D){
-                    lightCamPos, center, lightUp, 90.0f, CAMERA_ORTHOGRAPHIC // fovy placeholder
-                });
-                    // Force the exact projection matrix we calculated
+                ClearBackground(WHITE);
+                BeginMode3D((Camera3D){lightCamPos, center, lightUp, 90.0f, CAMERA_ORTHOGRAPHIC});
                     rlSetMatrixProjection(lightProj);
-                    
                     BeginShaderMode(depthShader);
                         rlDisableBackfaceCulling();
                         DrawWorld(&world, (Camera3D){lightCamPos, center, lightUp, 40.0f, CAMERA_ORTHOGRAPHIC}, false);
                         rlEnableBackfaceCulling();
                     EndShaderMode();
-
                 EndMode3D();
             EndTextureMode();
         }
 
-        // 3. Render Scene with Shadows (Pass 2)
-        BeginDrawing();
         ClearBackground(SKYBLUE);
-
         BeginMode3D(camera);
             if (shadersEnabled) {
-                // Update shadow shader uniforms
                 SetShaderValueMatrix(shadowShader, lightVPLoc, lightVP);
                 SetShaderValue(shadowShader, shadowShader.locs[SHADER_LOC_VECTOR_VIEW], &camera.position, SHADER_UNIFORM_VEC3);
                 SetShaderValue(shadowShader, lightDirLoc, &lightDir, SHADER_UNIFORM_VEC3);
-                
-                Vector3 lightColorVec = (Vector3){(float)settings.lightColor.r/255.0f, (float)settings.lightColor.g/255.0f, (float)settings.lightColor.b/255.0f};
+
+                Vector3 lightColorVec = {
+                    (float)settings.lightColor.r / 255.0f,
+                    (float)settings.lightColor.g / 255.0f,
+                    (float)settings.lightColor.b / 255.0f
+                };
                 SetShaderValue(shadowShader, lightColorLoc, &lightColorVec, SHADER_UNIFORM_VEC3);
                 SetShaderValue(shadowShader, ambientLoc, &settings.ambient, SHADER_UNIFORM_FLOAT);
                 SetShaderValue(shadowShader, shadowBiasLoc, &settings.shadowBias, SHADER_UNIFORM_FLOAT);
 
-                // Bind Shadow Map to texture slot 1 (slot 0 is diffuse texture)
-                // In Raylib shaders, we usually pass texture via uniform sampler.
-                // We can use the slot index.
-                // Set active texture slot to 1
                 rlActiveTextureSlot(1);
                 rlEnableTexture(shadowMap.texture.id);
-                rlActiveTextureSlot(0); // Back to default
+                rlActiveTextureSlot(0);
 
-                // Tell shader that "shadowMap" sampler uses texture unit 1
                 int slot = 1;
                 SetShaderValue(shadowShader, shadowMapLoc, &slot, SHADER_UNIFORM_INT);
-
                 BeginShaderMode(shadowShader);
             }
 
@@ -683,11 +748,10 @@ int main() {
             if (shadersEnabled) {
                 EndShaderMode();
                 rlActiveTextureSlot(1);
-                rlDisableTexture(); // Unbind
+                rlDisableTexture();
                 rlActiveTextureSlot(0);
             }
 
-            // Objective beacon at next port
             if (world.state.portCount > 0 && world.state.nextWorldId != WORLD_NONE) {
                 Vector3Int p = world.state.ports[0].position;
                 Vector3 base = {(float)p.x, 0.0f, (float)p.z};
@@ -695,29 +759,27 @@ int main() {
                 DrawSphere((Vector3){base.x, 2.2f, base.z}, 0.2f, YELLOW);
             }
 
-            // Destination Marker
-            if (!combat.active && Vector3Distance(player.lerpPosition, (Vector3){(float)player.target.x, (float)player.target.y, (float)player.target.z}) > 0.1f) {
-                DrawCircle3D((Vector3){(float)player.target.x, 0.01f, (float)player.target.z}, 0.5f, (Vector3){1, 0, 0}, 90.0f, Fade(YELLOW, 0.5f));
+            if (!combat.active &&
+                Vector3Distance(player.lerpPosition,
+                                (Vector3){(float)player.target.x, (float)player.target.y, (float)player.target.z}) > 0.1f) {
+                DrawCircle3D((Vector3){(float)player.target.x, 0.01f, (float)player.target.z},
+                             0.5f,
+                             (Vector3){1, 0, 0},
+                             90.0f,
+                             Fade(YELLOW, 0.5f));
             }
         EndMode3D();
 
-        // UI Layer - drawn directly to screen
         DrawInventory(&player);
         DrawSkills(&player);
         DrawHUD(&player, &world, isFirstPerson);
+        DrawGuardDialogue(&player, &world);
 
         if (combat.active) DrawCombatUI(&combat, GetScreenWidth(), GetScreenHeight());
-        
-        if (messageTimer > 0) {
-            DrawRectangle(0, GetScreenHeight() - 100, GetScreenWidth(), 40, Fade(BLACK, 0.7f));
-            DrawText(message, 20, GetScreenHeight() - 90, 20, WHITE);
-        }
 
         DrawText("Point & Click to move across the Mediterranean", 10, GetScreenHeight() - 45, 15, WHITE);
         DrawFPS(10, GetScreenHeight() - 25);
-        
         DrawShaderDebugUI(&settings);
-
         EndDrawing();
     }
 
