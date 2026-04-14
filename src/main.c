@@ -53,6 +53,38 @@ bool romanSoldierModelLoaded = false;
 Vector3 romanSoldierModelScale = {1.0f, 1.0f, 1.0f};
 Vector3 romanSoldierModelOffset = {0};
 
+static void DrawStartupLoadingScreen(int screenWidth, int screenHeight, float progress, const char *label) {
+    if (progress < 0.0f) progress = 0.0f;
+    if (progress > 1.0f) progress = 1.0f;
+
+    Color skyTop = (Color){22, 40, 68, 255};
+    Color skyBottom = (Color){173, 126, 71, 255};
+    int barWidth = 460;
+    int barHeight = 20;
+    int barX = screenWidth / 2 - barWidth / 2;
+    int barY = screenHeight / 2 + 36;
+    int fillWidth = (int)((float)(barWidth - 8) * progress);
+    const char *title = "St. Paul's Postal Service";
+    const char *subtitle = "Preparing Paul's journey across the Mediterranean";
+
+    BeginDrawing();
+    ClearBackground(BLACK);
+    DrawRectangleGradientV(0, 0, screenWidth, screenHeight, skyTop, skyBottom);
+    DrawCircle(screenWidth - 170, 120, 58, Fade(GOLD, 0.88f));
+    DrawRectangle(0, screenHeight - 180, screenWidth, 180, (Color){18, 55, 96, 255});
+    DrawTriangle((Vector2){140, screenHeight - 110}, (Vector2){270, screenHeight - 150}, (Vector2){328, screenHeight - 92}, (Color){92, 60, 29, 255});
+    DrawTriangle((Vector2){245, screenHeight - 218}, (Vector2){245, screenHeight - 90}, (Vector2){352, screenHeight - 130}, Fade(RAYWHITE, 0.82f));
+
+    DrawText(title, screenWidth / 2 - MeasureText(title, 54) / 2, screenHeight / 2 - 110, 54, RAYWHITE);
+    DrawText(subtitle, screenWidth / 2 - MeasureText(subtitle, 24) / 2, screenHeight / 2 - 56, 24, Fade(RAYWHITE, 0.9f));
+    DrawText(label, screenWidth / 2 - MeasureText(label, 24) / 2, screenHeight / 2 + 2, 24, WHITE);
+
+    DrawRectangle(barX, barY, barWidth, barHeight, Fade(BLACK, 0.45f));
+    DrawRectangle(barX + 4, barY + 4, fillWidth, barHeight - 8, GOLD);
+    DrawRectangleLines(barX, barY, barWidth, barHeight, Fade(RAYWHITE, 0.55f));
+    EndDrawing();
+}
+
 static void ShowWorldMessage(Player *player, const char *text, float duration) {
     snprintf(player->worldMessage, sizeof(player->worldMessage), "%s", text);
     player->worldMessageTimer = duration;
@@ -497,9 +529,12 @@ int main() {
 
     float snakeEventTimer = 0.0f;
 
-    InitWindow(screenWidth, screenHeight, "RayScape - Paul's Journeys");
+    InitWindow(screenWidth, screenHeight, "St. Paul's Postal Service");
+    DrawStartupLoadingScreen(screenWidth, screenHeight, 0.08f, "Opening travel logs...");
     LoadSprites();
+    DrawStartupLoadingScreen(screenWidth, screenHeight, 0.28f, "Loading characters and world models...");
     LoadModels();
+    DrawStartupLoadingScreen(screenWidth, screenHeight, 0.56f, "Preparing lighting and shadows...");
     shadowShader = LoadShader("shaders/shadow.vs", "shaders/shadow.fs");
     depthShader = LoadShader("shaders/depth.vs", "shaders/depth.fs");
     shadowMap = LoadRenderTexture(SHADOW_MAP_SIZE, SHADOW_MAP_SIZE);
@@ -516,9 +551,11 @@ int main() {
     float smSize = (float)SHADOW_MAP_SIZE;
     SetShaderValue(shadowShader, shadowMapSizeLoc, &smSize, SHADER_UNIFORM_FLOAT);
 
+    DrawStartupLoadingScreen(screenWidth, screenHeight, 0.78f, "Gathering companions and ports...");
     InitPlayer(&player);
     InitWorld(&world);
     InitShipMinigame(&shipMinigame);
+    DrawStartupLoadingScreen(screenWidth, screenHeight, 1.0f, "Journey ready.");
     camera.position = (Vector3){8.0f, 8.0f, 8.0f};
     camera.target = (Vector3){0.0f, 0.0f, 0.0f};
     camera.up = (Vector3){0.0f, 1.0f, 0.0f};

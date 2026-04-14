@@ -1,6 +1,6 @@
 #!/bin/sh
 
-APP_NAME="rayscape"
+APP_NAME="main"
 SOURCE_FILES="src/main.c src/player.c src/world.c src/ui.c src/combat.c src/npc.c src/ship_minigame.c spps-voyage/src/objects.c spps-voyage/src/ocean.c spps-voyage/src/spawner.c spps-voyage/src/collision.c spps-voyage/src/crew.c spps-voyage/src/interior.c"
 VOYAGE_NAME="voyage"
 VOYAGE_SOURCE_FILES="spps-voyage/src/main.c spps-voyage/src/objects.c spps-voyage/src/ocean.c spps-voyage/src/spawner.c spps-voyage/src/collision.c spps-voyage/src/crew.c spps-voyage/src/interior.c"
@@ -23,4 +23,4 @@ $COMPILER $VOYAGE_SOURCE_FILES -o $VOYAGE_NAME $VOYAGE_CFLAGS $LDFLAGS || {
     exit 1
 }
 
-echo "✅ Success! Run './$APP_NAME' to start the main game."
+echo "✅ Success! Run './$APP_NAME' to start St. Paul's Postal Service."

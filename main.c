@@ -47,7 +47,7 @@ int main() {
   // 1. Initialization
   const int screenWidth = 1280;
   const int screenHeight = 720;
-  InitWindow(screenWidth, screenHeight, "RayScape - The Foundations");
+  InitWindow(screenWidth, screenHeight, "St. Paul's Postal Service");
 
   // Camera setup
   Camera3D camera = {0};

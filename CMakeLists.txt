@@ -36,20 +36,20 @@ set(VOYAGE_SRC_FILES
     spps-voyage/src/interior.c
 )
 
-add_executable(game ${SRC_FILES})
+add_executable(main ${SRC_FILES})
 add_executable(voyage ${VOYAGE_SRC_FILES})
 
-target_link_libraries(game raylib)
+target_link_libraries(main raylib)
 target_link_libraries(voyage raylib)
 
 # Platform-specific stuff
 if (WIN32)
-    target_link_libraries(game opengl32 gdi32 winmm)
+    target_link_libraries(main opengl32 gdi32 winmm)
     target_link_libraries(voyage opengl32 gdi32 winmm)
 elseif (APPLE)
-    target_link_libraries(game "-framework OpenGL" "-framework Cocoa" "-framework IOKit")
+    target_link_libraries(main "-framework OpenGL" "-framework Cocoa" "-framework IOKit")
     target_link_libraries(voyage "-framework OpenGL" "-framework Cocoa" "-framework IOKit")
 elseif (UNIX)
-    target_link_libraries(game m pthread dl GL)
+    target_link_libraries(main m pthread dl GL)
     target_link_libraries(voyage m pthread dl GL)
 endif()

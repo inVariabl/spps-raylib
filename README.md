@@ -1,4 +1,4 @@
-# RayScape - Paul's Journeys
+# St. Paul's Postal Service
 
 An interactive RPG built with C and Raylib, following the journeys of St. Paul.
 
@@ -28,7 +28,7 @@ An interactive RPG built with C and Raylib, following the journeys of St. Paul.
    ```
 3. Alternatively, compile and run manually:
    ```bash
-   ./rayscape
+   ./main
    ```
 
 ## Controls
