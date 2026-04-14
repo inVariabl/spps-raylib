@@ -4,24 +4,23 @@
 #include "raylib.h"
 #include "world.h"
 
-#define SHIP_GAME_OBSTACLE_COUNT 18
+typedef enum {
+    SHIP_MINIGAME_IDLE = 0,
+    SHIP_MINIGAME_LOADING,
+    SHIP_MINIGAME_PLAYING,
+    SHIP_MINIGAME_RETURNING
+} ShipMinigamePhase;
 
 typedef struct {
     bool active;
     bool failed;
     bool completed;
-    float travelProgress;
-    float boatX;
-    float bobTimer;
-    int hullPoints;
     WorldId destinationWorld;
     const char *fromName;
     const char *toName;
-    Vector3 obstaclePos[SHIP_GAME_OBSTACLE_COUNT];
-    bool obstacleActive[SHIP_GAME_OBSTACLE_COUNT];
-    float obstacleRadius[SHIP_GAME_OBSTACLE_COUNT];
-    bool obstacleCoin[SHIP_GAME_OBSTACLE_COUNT];
-    float spawnTimer;
+    ShipMinigamePhase phase;
+    float phaseTimer;
+    char resultMessage[160];
 } ShipMinigame;
 
 void InitShipMinigame(ShipMinigame *game);

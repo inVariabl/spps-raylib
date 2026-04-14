@@ -5,6 +5,7 @@
 #include "world.h"
 #include "ui.h"
 #include "combat.h"
+#include "ship_minigame.h"
 #include "scripture.h"
 #include <math.h>
 #include <stdio.h>
@@ -429,29 +430,10 @@ static void MovePlayerToPort(Player *player, World *world, int portIdx) {
     ResetPlayerMovement(player, p);
 }
 
-static void HandlePortTravel(Player *player, World *world, int portIdx) {
+static void HandlePortTravel(Player *player, World *world, ShipMinigame *shipMinigame, int portIdx) {
     if (world->state.nextWorldId == WORLD_NONE) return;
     if (world->state.worldId == WORLD_JUDEA && !player->guardClearedForShip) return;
-
-    const char *voyageCmd = NULL;
-    if (FileExists("./voyage")) voyageCmd = "./voyage";
-    else if (FileExists("./out/voyage")) voyageCmd = "./out/voyage";
-
-    if (voyageCmd == NULL) {
-        ShowWorldMessage(player, "Voyage binary missing. Build it first with ./build or cmake --build out.", 6.0f);
-        return;
-    }
-
-    int result = system(voyageCmd);
-    if (result != 0) {
-        ShowWorldMessage(player, "The voyage failed. You return to shore and remain in the current port.", 5.0f);
-        return;
-    }
-
-    LoadWorld(world, world->state.nextWorldId);
-    if (world->state.portCount > 0) {
-        MovePlayerToPort(player, world, 0);
-    }
+    StartShipMinigame(shipMinigame, world->state.nextWorldId, world->state.worldName, world->state.nextWorldName);
 }
 
 void LoadSprites() {
@@ -485,6 +467,7 @@ int main() {
     Player player = {0};
     World world = {0};
     CombatSession combat = {0};
+    ShipMinigame shipMinigame = {0};
     bool isFirstPerson = false;
     bool shadersEnabled = false;
 
@@ -535,6 +518,7 @@ int main() {
 
     InitPlayer(&player);
     InitWorld(&world);
+    InitShipMinigame(&shipMinigame);
     camera.position = (Vector3){8.0f, 8.0f, 8.0f};
     camera.target = (Vector3){0.0f, 0.0f, 0.0f};
     camera.up = (Vector3){0.0f, 1.0f, 0.0f};
@@ -544,6 +528,21 @@ int main() {
     SetTargetFPS(60);
 
     while (!WindowShouldClose()) {
+        if (shipMinigame.completed) {
+            LoadWorld(&world, shipMinigame.destinationWorld);
+            if (world.state.portCount > 0) {
+                MovePlayerToPort(&player, &world, 0);
+            }
+            InitShipMinigame(&shipMinigame);
+        } else if (shipMinigame.failed) {
+            if (shipMinigame.resultMessage[0] != '\0') {
+                ShowWorldMessage(&player, shipMinigame.resultMessage, 5.0f);
+            } else {
+                ShowWorldMessage(&player, "The voyage failed. You return to shore and remain in the current port.", 5.0f);
+            }
+            InitShipMinigame(&shipMinigame);
+        }
+
         if (player.worldMessageTimer > 0.0f) {
             player.worldMessageTimer -= GetFrameTime();
             if (player.worldMessageTimer <= 0.0f) {
@@ -564,128 +563,145 @@ int main() {
             }
         }
 
-        if (IsKeyPressed(KEY_F1)) {
-            isFirstPerson = true;
-            DisableCursor();
-        }
-        if (IsKeyPressed(KEY_F2)) shadersEnabled = !shadersEnabled;
-        if (IsKeyPressed(KEY_F3)) {
-            isFirstPerson = false;
-            EnableCursor();
-        }
-        if (IsKeyPressed(KEY_F5)) {
-            settings.showDebugUI = !settings.showDebugUI;
-            if (settings.showDebugUI) EnableCursor();
-        }
-
-        if (isFirstPerson) {
-            Vector2 delta = GetMouseDelta();
-            player.yaw -= delta.x * 0.005f;
-            player.pitch += delta.y * -0.005f;
-            if (player.pitch > PI / 2.5f) player.pitch = PI / 2.5f;
-            if (player.pitch < -PI / 2.5f) player.pitch = -PI / 2.5f;
-
-            camera.position = (Vector3){player.lerpPosition.x, 1.6f, player.lerpPosition.z};
-            Vector3 look = {
-                cosf(player.pitch) * sinf(player.yaw),
-                sinf(player.pitch),
-                cosf(player.pitch) * cosf(player.yaw)
-            };
-            camera.target = Vector3Add(camera.position, look);
-            camera.fovy = 60.0f;
+        if (shipMinigame.active) {
+            UpdateShipMinigame(&shipMinigame);
         } else {
-            camera.target = player.lerpPosition;
-            camera.position = (Vector3){player.lerpPosition.x + 8.0f, 8.0f, player.lerpPosition.z + 8.0f};
-            camera.fovy = 45.0f;
-        }
+            if (IsKeyPressed(KEY_F1)) {
+                isFirstPerson = true;
+                DisableCursor();
+            }
+            if (IsKeyPressed(KEY_F2)) shadersEnabled = !shadersEnabled;
+            if (IsKeyPressed(KEY_F3)) {
+                isFirstPerson = false;
+                EnableCursor();
+            }
+            if (IsKeyPressed(KEY_F5)) {
+                settings.showDebugUI = !settings.showDebugUI;
+                if (settings.showDebugUI) EnableCursor();
+            }
 
-        if (!settings.showDebugUI && !combat.active && !player.guardDialogueActive && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
-                Ray ray = isFirstPerson
-                    ? GetMouseRay((Vector2){(float)GetScreenWidth() / 2, (float)GetScreenHeight() / 2}, camera)
-                    : GetMouseRay(GetMousePosition(), camera);
+            if (isFirstPerson) {
+                Vector2 delta = GetMouseDelta();
+                player.yaw -= delta.x * 0.005f;
+                player.pitch += delta.y * -0.005f;
+                if (player.pitch > PI / 2.5f) player.pitch = PI / 2.5f;
+                if (player.pitch < -PI / 2.5f) player.pitch = -PI / 2.5f;
 
-                int npcIdx = GetClickedNPC(&world, ray);
-                if (npcIdx != -1) {
-                    const char *npcName = world.state.npcs[npcIdx].name;
+                camera.position = (Vector3){player.lerpPosition.x, 1.6f, player.lerpPosition.z};
+                Vector3 look = {
+                    cosf(player.pitch) * sinf(player.yaw),
+                    sinf(player.pitch),
+                    cosf(player.pitch) * cosf(player.yaw)
+                };
+                camera.target = Vector3Add(camera.position, look);
+                camera.fovy = 60.0f;
+            } else {
+                camera.target = player.lerpPosition;
+                camera.position = (Vector3){player.lerpPosition.x + 8.0f, 8.0f, player.lerpPosition.z + 8.0f};
+                camera.fovy = 45.0f;
+            }
 
-                    if (TextIsEqual(npcName, "Pharisee")) {
-                        StartCombat(&combat, npcName);
-                    } else if (TextIsEqual(npcName, "Islander")) {
-                        bool nearSnake =
-                            abs(player.position.x - world.state.snakePos.x) <= 6 &&
-                            abs(player.position.z - world.state.snakePos.z) <= 6;
-                        if (world.state.worldId == WORLD_MALTA && nearSnake && IsMaltaSnakeResolved(&world)) {
-                            ShowWorldMessage(&player, "Islander: 'He must be a god! He suffered no harm!'", 5.0f);
-                        } else {
-                            ShowWorldMessage(&player, "Islander: 'No doubt this man is a murderer, for justice has not allowed him to live.'", 5.0f);
-                        }
-                    } else if (TextIsEqual(npcName, "Guard")) {
-                    } else if (TextIsEqual(npcName, "Roman Believer 1") ||
-                               TextIsEqual(npcName, "Roman Believer 2") ||
-                               TextIsEqual(npcName, "Roman Believer 3") ||
-                               TextIsEqual(npcName, "Centurion")) {
-                        HandleRomeNpcInteraction(&player, &world, npcName);
-                    } else {
-                        ShowWorldMessage(&player, TextFormat("%s pauses as you approach.", npcName), 3.0f);
-                    }
-                } else {
-                    int itemIdx = GetClickedItem(&world, ray);
-                    int decoIdx = GetClickedDecoration(&world, ray);
+            if (!settings.showDebugUI && !combat.active && !player.guardDialogueActive && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+                    Ray ray = isFirstPerson
+                        ? GetMouseRay((Vector2){(float)GetScreenWidth() / 2, (float)GetScreenHeight() / 2}, camera)
+                        : GetMouseRay(GetMousePosition(), camera);
 
-                    if (itemIdx != -1) {
-                        if (AddToInventory(&player, world.state.items[itemIdx].itemId)) {
-                            world.state.items[itemIdx].active = false;
-                        }
-                    } else if (decoIdx != -1) {
-                        if (world.state.decos[decoIdx].type == DECO_FIRE_PIT_UNLIT) {
-                            world.state.decos[decoIdx].type = DECO_FIRE_PIT;
-                            for (int i = 0; i < MAX_DECORATIONS; i++) {
-                                if (world.state.decos[i].position.x == world.state.snakePos.x &&
-                                    world.state.decos[i].position.z == world.state.snakePos.z &&
-                                    world.state.decos[i].type == DECO_NONE) {
-                                    world.state.decos[i].type = DECO_SNAKE;
-                                    break;
-                                }
+                    int npcIdx = GetClickedNPC(&world, ray);
+                    if (npcIdx != -1) {
+                        const char *npcName = world.state.npcs[npcIdx].name;
+
+                        if (TextIsEqual(npcName, "Pharisee")) {
+                            StartCombat(&combat, npcName);
+                        } else if (TextIsEqual(npcName, "Islander")) {
+                            bool nearSnake =
+                                abs(player.position.x - world.state.snakePos.x) <= 6 &&
+                                abs(player.position.z - world.state.snakePos.z) <= 6;
+                            if (world.state.worldId == WORLD_MALTA && nearSnake && IsMaltaSnakeResolved(&world)) {
+                                ShowWorldMessage(&player, "Islander: 'He must be a god! He suffered no harm!'", 5.0f);
+                            } else {
+                                ShowWorldMessage(&player, "Islander: 'No doubt this man is a murderer, for justice has not allowed him to live.'", 5.0f);
                             }
-                            ShowWorldMessage(&player, "A viper fastens on your hand! The islanders watch closely...", 5.0f);
-                            snakeEventTimer = 8.0f;
-                        } else if (world.state.decos[decoIdx].type == DECO_FIRE_PIT) {
-                            ShowWorldMessage(&player, "The fire burns warmly.", 3.0f);
+                        } else if (TextIsEqual(npcName, "Guard")) {
+                        } else if (TextIsEqual(npcName, "Roman Believer 1") ||
+                                   TextIsEqual(npcName, "Roman Believer 2") ||
+                                   TextIsEqual(npcName, "Roman Believer 3") ||
+                                   TextIsEqual(npcName, "Centurion")) {
+                            HandleRomeNpcInteraction(&player, &world, npcName);
+                        } else {
+                            ShowWorldMessage(&player, TextFormat("%s pauses as you approach.", npcName), 3.0f);
                         }
-                    } else if (!isFirstPerson) {
-                        Vector3Int gridClick = GetGridClicked(ray);
-                        if (gridClick.y != -1) {
-                            FindPath(&world, &player, gridClick);
+                    } else {
+                        int itemIdx = GetClickedItem(&world, ray);
+                        int decoIdx = GetClickedDecoration(&world, ray);
+
+                        if (itemIdx != -1) {
+                            if (AddToInventory(&player, world.state.items[itemIdx].itemId)) {
+                                world.state.items[itemIdx].active = false;
+                            }
+                        } else if (decoIdx != -1) {
+                            if (world.state.decos[decoIdx].type == DECO_FIRE_PIT_UNLIT) {
+                                world.state.decos[decoIdx].type = DECO_FIRE_PIT;
+                                for (int i = 0; i < MAX_DECORATIONS; i++) {
+                                    if (world.state.decos[i].position.x == world.state.snakePos.x &&
+                                        world.state.decos[i].position.z == world.state.snakePos.z &&
+                                        world.state.decos[i].type == DECO_NONE) {
+                                        world.state.decos[i].type = DECO_SNAKE;
+                                        break;
+                                    }
+                                }
+                                ShowWorldMessage(&player, "A viper fastens on your hand! The islanders watch closely...", 5.0f);
+                                snakeEventTimer = 8.0f;
+                            } else if (world.state.decos[decoIdx].type == DECO_FIRE_PIT) {
+                                ShowWorldMessage(&player, "The fire burns warmly.", 3.0f);
+                            }
+                        } else if (!isFirstPerson) {
+                            Vector3Int gridClick = GetGridClicked(ray);
+                            if (gridClick.y != -1) {
+                                FindPath(&world, &player, gridClick);
+                            }
                         }
                     }
                 }
-            }
 
-        if (combat.active) {
-            UpdateCombat(&combat, &player);
-        } else {
-            UpdateGuardDialogue(&player, &world);
+            if (combat.active) {
+                UpdateCombat(&combat, &player);
+            } else {
+                bool travelStarted = false;
 
-            int portIdx = GetPortAt(&world, player.position);
-            if (portIdx != -1 && IsKeyPressed(KEY_T) && !player.guardDialogueActive) {
-                if (world.state.worldId == WORLD_MALTA && !IsMaltaSnakeResolved(&world)) {
-                    ShowWorldMessage(&player, "Captain: 'We must wait for the winter storms to pass.'", 4.0f);
-                } else {
-                    HandlePortTravel(&player, &world, portIdx);
+                UpdateGuardDialogue(&player, &world);
+
+                int portIdx = GetPortAt(&world, player.position);
+                if (portIdx != -1 && IsKeyPressed(KEY_T) && !player.guardDialogueActive) {
+                    if (world.state.worldId == WORLD_MALTA && !IsMaltaSnakeResolved(&world)) {
+                        ShowWorldMessage(&player, "Captain: 'We must wait for the winter storms to pass.'", 4.0f);
+                    } else {
+                        isFirstPerson = false;
+                        EnableCursor();
+                        HandlePortTravel(&player, &world, &shipMinigame, portIdx);
+                        travelStarted = shipMinigame.active;
+                    }
+                }
+
+                if (!travelStarted) {
+                    if (!player.gameComplete && !player.guardDialogueActive) {
+                        UpdatePlayer(&player, &world, isFirstPerson);
+                    }
+                    UpdateWorld(&world, &player);
+
+                    if (!player.guardDialogueActive && IsKeyPressed(KEY_C)) TryCraftTent(&player);
+                    if (!player.guardDialogueActive && IsKeyPressed(KEY_I)) player.showInventory = !player.showInventory;
+                    if (!player.guardDialogueActive && IsKeyPressed(KEY_M)) player.showMap = !player.showMap;
                 }
             }
-
-            if (!player.gameComplete && !player.guardDialogueActive) {
-                UpdatePlayer(&player, &world, isFirstPerson);
-            }
-            UpdateWorld(&world, &player);
-
-            if (!player.guardDialogueActive && IsKeyPressed(KEY_C)) TryCraftTent(&player);
-            if (!player.guardDialogueActive && IsKeyPressed(KEY_I)) player.showInventory = !player.showInventory;
-            if (!player.guardDialogueActive && IsKeyPressed(KEY_M)) player.showMap = !player.showMap;
         }
 
         BeginDrawing();
+        if (shipMinigame.active) {
+            DrawShipMinigame(&shipMinigame, GetScreenWidth(), GetScreenHeight());
+            EndDrawing();
+            continue;
+        }
+
         Matrix lightView;
         Matrix lightProj;
         float shadowBoxSize = 60.0f;
@@ -786,6 +802,7 @@ int main() {
     UnloadShader(shadowShader);
     UnloadShader(depthShader);
     UnloadRenderTexture(shadowMap);
+    UnloadShipMinigame();
     UnloadModels();
     CloseWindow();
     return 0;

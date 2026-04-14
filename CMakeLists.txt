@@ -17,6 +17,15 @@ include_directories(${CMAKE_SOURCE_DIR}/spps-voyage/src)
 link_directories(${RAYLIB_PATH})
 
 file(GLOB SRC_FILES src/*.c)
+list(APPEND SRC_FILES
+    spps-voyage/src/objects.c
+    spps-voyage/src/ocean.c
+    spps-voyage/src/spawner.c
+    spps-voyage/src/collision.c
+    spps-voyage/src/crew.c
+    spps-voyage/src/interior.c
+)
+
 set(VOYAGE_SRC_FILES
     spps-voyage/src/main.c
     spps-voyage/src/objects.c
