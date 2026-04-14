@@ -2,6 +2,18 @@
 
 An interactive RPG built with C and Raylib, following the journeys of St. Paul.
 
+## Screenshots
+
+![Overworld view](screenshots/screenshot_25.png)
+
+![Voyage sequence](screenshots/screenshot_50.png)
+
+![Gameplay screenshot 1](screenshots/pic-full-260322-1751-13.png)
+
+![Gameplay screenshot 2](screenshots/pic-full-260322-1751-31.png)
+
+![Gameplay screenshot 3](screenshots/pic-full-260322-1753-12.png)
+
 ## Features
 
 - **Dual Perspective System:**
