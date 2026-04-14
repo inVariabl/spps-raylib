@@ -1,0 +1,4 @@
+/home/daniel/Sync/CBU/EGR402/project/spps-raylib/out/CMakeFiles/game.dir
+/home/daniel/Sync/CBU/EGR402/project/spps-raylib/out/CMakeFiles/voyage.dir
+/home/daniel/Sync/CBU/EGR402/project/spps-raylib/out/CMakeFiles/edit_cache.dir
+/home/daniel/Sync/CBU/EGR402/project/spps-raylib/out/CMakeFiles/rebuild_cache.dir
