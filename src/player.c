@@ -1,4 +1,5 @@
 #include "player.h"
+#include "platform_input.h"
 #include <stdio.h>
 #include <string.h>
 

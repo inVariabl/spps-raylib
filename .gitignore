@@ -1,5 +1,10 @@
 assets/
 build_web/
+out-web/
+out-web-lite/
+/main
+/voyage
+/emsdk/
 
 .vscode
 out-gcc

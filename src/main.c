@@ -7,9 +7,18 @@
 #include "combat.h"
 #include "ship_minigame.h"
 #include "scripture.h"
+#include "platform_input.h"
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
+
+#if SPPS_PLATFORM_WEB
+#include <emscripten/emscripten.h>
+#endif
+
+#define GAME_SCREEN_WIDTH 1280
+#define GAME_SCREEN_HEIGHT 720
+#define SHADOW_MAP_SIZE 1024
 
 Texture2D spriteDatabase[SPRITE_COUNT];
 Model snakeModel = {0};
@@ -52,6 +61,30 @@ Model romanSoldierModel = {0};
 bool romanSoldierModelLoaded = false;
 Vector3 romanSoldierModelScale = {1.0f, 1.0f, 1.0f};
 Vector3 romanSoldierModelOffset = {0};
+
+typedef struct {
+    Camera3D camera;
+    Player player;
+    World world;
+    CombatSession combat;
+    ShipMinigame shipMinigame;
+    bool isFirstPerson;
+    bool shadersEnabled;
+    bool shadowPipelineReady;
+    Shader shadowShader;
+    Shader depthShader;
+    RenderTexture2D shadowMap;
+    int shadowMapLoc;
+    int lightDirLoc;
+    int lightColorLoc;
+    int ambientLoc;
+    int shadowBiasLoc;
+    int lightVPLoc;
+    ShaderSettings settings;
+    float snakeEventTimer;
+} GameRuntime;
+
+static GameRuntime g_game = {0};
 
 static void DrawStartupLoadingScreen(int screenWidth, int screenHeight, float progress, const char *label) {
     if (progress < 0.0f) progress = 0.0f;
@@ -491,24 +524,8 @@ void LoadSprites() {
     UnloadImage(imgLetter);
 }
 
-int main() {
-    const int screenWidth = 1280;
-    const int screenHeight = 720;
-
-    Camera3D camera = {0};
-    Player player = {0};
-    World world = {0};
-    CombatSession combat = {0};
-    ShipMinigame shipMinigame = {0};
-    bool isFirstPerson = false;
-    bool shadersEnabled = false;
-
-    Shader shadowShader = {0};
-    Shader depthShader = {0};
-    RenderTexture2D shadowMap = {0};
-    const int SHADOW_MAP_SIZE = 1024;
-
-    ShaderSettings settings = {
+static void LoadShaderSettings(ShaderSettings *settings) {
+    *settings = (ShaderSettings){
         .lightDir = (Vector3){0.0f, 1.0f, 0.0f},
         .lightColor = WHITE,
         .ambient = 0.6f,
@@ -516,331 +533,397 @@ int main() {
         .showDebugUI = false
     };
 
+    if (SPPS_PLATFORM_WEB) return;
+
     FILE *f = fopen("shader_settings.txt", "r");
-    if (f) {
-        int r, g, b;
-        fscanf(f, "%f %f %f", &settings.lightDir.x, &settings.lightDir.y, &settings.lightDir.z);
-        fscanf(f, "%d %d %d", &r, &g, &b);
-        settings.lightColor = (Color){(unsigned char)r, (unsigned char)g, (unsigned char)b, 255};
-        fscanf(f, "%f", &settings.ambient);
-        fscanf(f, "%f", &settings.shadowBias);
-        fclose(f);
-    }
+    if (!f) return;
 
-    float snakeEventTimer = 0.0f;
+    int r, g, b;
+    fscanf(f, "%f %f %f", &settings->lightDir.x, &settings->lightDir.y, &settings->lightDir.z);
+    fscanf(f, "%d %d %d", &r, &g, &b);
+    settings->lightColor = (Color){(unsigned char)r, (unsigned char)g, (unsigned char)b, 255};
+    fscanf(f, "%f", &settings->ambient);
+    fscanf(f, "%f", &settings->shadowBias);
+    fclose(f);
+}
 
-    InitWindow(screenWidth, screenHeight, "St. Paul's Postal Service");
-    DrawStartupLoadingScreen(screenWidth, screenHeight, 0.08f, "Opening travel logs...");
-    LoadSprites();
-    DrawStartupLoadingScreen(screenWidth, screenHeight, 0.28f, "Loading characters and world models...");
-    LoadModels();
-    DrawStartupLoadingScreen(screenWidth, screenHeight, 0.56f, "Preparing lighting and shadows...");
-    shadowShader = LoadShader("shaders/shadow.vs", "shaders/shadow.fs");
-    depthShader = LoadShader("shaders/depth.vs", "shaders/depth.fs");
-    shadowMap = LoadRenderTexture(SHADOW_MAP_SIZE, SHADOW_MAP_SIZE);
+static bool BrowserAliasAllowed(const GameRuntime *game) {
+    return SPPS_PLATFORM_WEB && !game->combat.active && !game->player.guardDialogueActive;
+}
 
-    int shadowMapLoc = GetShaderLocation(shadowShader, "shadowMap");
-    shadowShader.locs[SHADER_LOC_VECTOR_VIEW] = GetShaderLocation(shadowShader, "viewPos");
-    int lightDirLoc = GetShaderLocation(shadowShader, "lightDir");
-    int lightColorLoc = GetShaderLocation(shadowShader, "lightColor");
-    int ambientLoc = GetShaderLocation(shadowShader, "ambient");
-    int shadowBiasLoc = GetShaderLocation(shadowShader, "shadowBias");
-    int lightVPLoc = GetShaderLocation(shadowShader, "lightVP");
-    int shadowMapSizeLoc = GetShaderLocation(shadowShader, "shadowMapSize");
+static bool IsActionTogglePressed(const GameRuntime *game, int functionKey, int browserAliasKey) {
+    return IsKeyPressed(functionKey) || (BrowserAliasAllowed(game) && IsKeyPressed(browserAliasKey));
+}
+
+static void EnterFirstPerson(GameRuntime *game) {
+    game->isFirstPerson = true;
+    DisableCursor();
+}
+
+static void ExitFirstPerson(GameRuntime *game) {
+    game->isFirstPerson = false;
+    EnableCursor();
+}
+
+static void InitializeShadowPipeline(GameRuntime *game) {
+    if (SPPS_PLATFORM_WEB) return;
+
+    game->shadowShader = LoadShader("shaders/shadow.vs", "shaders/shadow.fs");
+    game->depthShader = LoadShader("shaders/depth.vs", "shaders/depth.fs");
+    game->shadowMap = LoadRenderTexture(SHADOW_MAP_SIZE, SHADOW_MAP_SIZE);
+
+    game->shadowMapLoc = GetShaderLocation(game->shadowShader, "shadowMap");
+    game->shadowShader.locs[SHADER_LOC_VECTOR_VIEW] = GetShaderLocation(game->shadowShader, "viewPos");
+    game->lightDirLoc = GetShaderLocation(game->shadowShader, "lightDir");
+    game->lightColorLoc = GetShaderLocation(game->shadowShader, "lightColor");
+    game->ambientLoc = GetShaderLocation(game->shadowShader, "ambient");
+    game->shadowBiasLoc = GetShaderLocation(game->shadowShader, "shadowBias");
+    game->lightVPLoc = GetShaderLocation(game->shadowShader, "lightVP");
 
     float smSize = (float)SHADOW_MAP_SIZE;
-    SetShaderValue(shadowShader, shadowMapSizeLoc, &smSize, SHADER_UNIFORM_FLOAT);
+    int shadowMapSizeLoc = GetShaderLocation(game->shadowShader, "shadowMapSize");
+    SetShaderValue(game->shadowShader, shadowMapSizeLoc, &smSize, SHADER_UNIFORM_FLOAT);
 
-    DrawStartupLoadingScreen(screenWidth, screenHeight, 0.78f, "Gathering companions and ports...");
-    InitPlayer(&player);
-    InitWorld(&world);
-    InitShipMinigame(&shipMinigame);
-    DrawStartupLoadingScreen(screenWidth, screenHeight, 1.0f, "Journey ready.");
-    camera.position = (Vector3){8.0f, 8.0f, 8.0f};
-    camera.target = (Vector3){0.0f, 0.0f, 0.0f};
-    camera.up = (Vector3){0.0f, 1.0f, 0.0f};
-    camera.fovy = 45.0f;
-    camera.projection = CAMERA_PERSPECTIVE;
+    game->shadowPipelineReady = true;
+}
+
+static void InitializeGame(GameRuntime *game) {
+    LoadShaderSettings(&game->settings);
+
+    InitWindow(GAME_SCREEN_WIDTH, GAME_SCREEN_HEIGHT, "St. Paul's Postal Service");
+    DrawStartupLoadingScreen(GAME_SCREEN_WIDTH, GAME_SCREEN_HEIGHT, 0.08f, "Opening travel logs...");
+    LoadSprites();
+    DrawStartupLoadingScreen(GAME_SCREEN_WIDTH, GAME_SCREEN_HEIGHT, 0.28f, "Loading characters and world models...");
+    LoadModels();
+
+    if (SPPS_PLATFORM_WEB) {
+        DrawStartupLoadingScreen(GAME_SCREEN_WIDTH, GAME_SCREEN_HEIGHT, 0.56f, "Preparing browser-safe rendering...");
+    } else {
+        DrawStartupLoadingScreen(GAME_SCREEN_WIDTH, GAME_SCREEN_HEIGHT, 0.56f, "Preparing lighting and shadows...");
+        InitializeShadowPipeline(game);
+    }
+
+    DrawStartupLoadingScreen(GAME_SCREEN_WIDTH, GAME_SCREEN_HEIGHT, 0.78f, "Gathering companions and ports...");
+    InitPlayer(&game->player);
+    InitWorld(&game->world);
+    InitShipMinigame(&game->shipMinigame);
+    DrawStartupLoadingScreen(GAME_SCREEN_WIDTH, GAME_SCREEN_HEIGHT, 1.0f, "Journey ready.");
+
+    game->camera.position = (Vector3){8.0f, 8.0f, 8.0f};
+    game->camera.target = (Vector3){0.0f, 0.0f, 0.0f};
+    game->camera.up = (Vector3){0.0f, 1.0f, 0.0f};
+    game->camera.fovy = 45.0f;
+    game->camera.projection = CAMERA_PERSPECTIVE;
+    game->shadersEnabled = false;
 
     SetTargetFPS(60);
+}
 
-    while (!WindowShouldClose()) {
-        if (shipMinigame.completed) {
-            LoadWorld(&world, shipMinigame.destinationWorld);
-            if (world.state.portCount > 0) {
-                MovePlayerToPort(&player, &world, 0);
-            }
-            InitShipMinigame(&shipMinigame);
-        } else if (shipMinigame.failed) {
-            if (shipMinigame.resultMessage[0] != '\0') {
-                ShowWorldMessage(&player, shipMinigame.resultMessage, 5.0f);
-            } else {
-                ShowWorldMessage(&player, "The voyage failed. You return to shore and remain in the current port.", 5.0f);
-            }
-            InitShipMinigame(&shipMinigame);
+static void ShutdownGame(GameRuntime *game) {
+    if (game->shadowPipelineReady) {
+        UnloadShader(game->shadowShader);
+        UnloadShader(game->depthShader);
+        UnloadRenderTexture(game->shadowMap);
+    }
+
+    UnloadShipMinigame();
+    UnloadModels();
+    CloseWindow();
+}
+
+static void UpdateDrawFrame(void *arg) {
+    GameRuntime *game = (GameRuntime *)arg;
+
+    if (game->shipMinigame.completed) {
+        LoadWorld(&game->world, game->shipMinigame.destinationWorld);
+        if (game->world.state.portCount > 0) {
+            MovePlayerToPort(&game->player, &game->world, 0);
         }
-
-        if (player.worldMessageTimer > 0.0f) {
-            player.worldMessageTimer -= GetFrameTime();
-            if (player.worldMessageTimer <= 0.0f) {
-                player.worldMessageTimer = 0.0f;
-                player.worldMessage[0] = '\0';
-            }
-        }
-
-        if (snakeEventTimer > 0.0f) {
-            snakeEventTimer -= GetFrameTime();
-            if (snakeEventTimer <= 0.0f && world.state.worldId == WORLD_MALTA) {
-                for (int i = 0; i < MAX_DECORATIONS; i++) {
-                    if (world.state.decos[i].type == DECO_SNAKE) {
-                        world.state.decos[i].type = DECO_NONE;
-                    }
-                }
-                ShowWorldMessage(&player, "You shake off the creature into the fire and suffer no harm.", 5.0f);
-            }
-        }
-
-        if (shipMinigame.active) {
-            UpdateShipMinigame(&shipMinigame);
+        InitShipMinigame(&game->shipMinigame);
+    } else if (game->shipMinigame.failed) {
+        if (game->shipMinigame.resultMessage[0] != '\0') {
+            ShowWorldMessage(&game->player, game->shipMinigame.resultMessage, 5.0f);
         } else {
-            if (IsKeyPressed(KEY_F1)) {
-                isFirstPerson = true;
-                DisableCursor();
-            }
-            if (IsKeyPressed(KEY_F2)) shadersEnabled = !shadersEnabled;
-            if (IsKeyPressed(KEY_F3)) {
-                isFirstPerson = false;
-                EnableCursor();
-            }
-            if (IsKeyPressed(KEY_F5)) {
-                settings.showDebugUI = !settings.showDebugUI;
-                if (settings.showDebugUI) EnableCursor();
-            }
+            ShowWorldMessage(&game->player, "The voyage failed. You return to shore and remain in the current port.", 5.0f);
+        }
+        InitShipMinigame(&game->shipMinigame);
+    }
 
-            if (isFirstPerson) {
-                Vector2 delta = GetMouseDelta();
-                player.yaw -= delta.x * 0.005f;
-                player.pitch += delta.y * -0.005f;
-                if (player.pitch > PI / 2.5f) player.pitch = PI / 2.5f;
-                if (player.pitch < -PI / 2.5f) player.pitch = -PI / 2.5f;
+    if (game->player.worldMessageTimer > 0.0f) {
+        game->player.worldMessageTimer -= GetFrameTime();
+        if (game->player.worldMessageTimer <= 0.0f) {
+            game->player.worldMessageTimer = 0.0f;
+            game->player.worldMessage[0] = '\0';
+        }
+    }
 
-                camera.position = (Vector3){player.lerpPosition.x, 1.6f, player.lerpPosition.z};
-                Vector3 look = {
-                    cosf(player.pitch) * sinf(player.yaw),
-                    sinf(player.pitch),
-                    cosf(player.pitch) * cosf(player.yaw)
-                };
-                camera.target = Vector3Add(camera.position, look);
-                camera.fovy = 60.0f;
-            } else {
-                camera.target = player.lerpPosition;
-                camera.position = (Vector3){player.lerpPosition.x + 8.0f, 8.0f, player.lerpPosition.z + 8.0f};
-                camera.fovy = 45.0f;
-            }
-
-            if (!settings.showDebugUI && !combat.active && !player.guardDialogueActive && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
-                    Ray ray = isFirstPerson
-                        ? GetMouseRay((Vector2){(float)GetScreenWidth() / 2, (float)GetScreenHeight() / 2}, camera)
-                        : GetMouseRay(GetMousePosition(), camera);
-
-                    int npcIdx = GetClickedNPC(&world, ray);
-                    if (npcIdx != -1) {
-                        const char *npcName = world.state.npcs[npcIdx].name;
-
-                        if (TextIsEqual(npcName, "Pharisee")) {
-                            StartCombat(&combat, npcName);
-                        } else if (TextIsEqual(npcName, "Islander")) {
-                            bool nearSnake =
-                                abs(player.position.x - world.state.snakePos.x) <= 6 &&
-                                abs(player.position.z - world.state.snakePos.z) <= 6;
-                            if (world.state.worldId == WORLD_MALTA && nearSnake && IsMaltaSnakeResolved(&world)) {
-                                ShowWorldMessage(&player, "Islander: 'He must be a god! He suffered no harm!'", 5.0f);
-                            } else {
-                                ShowWorldMessage(&player, "Islander: 'No doubt this man is a murderer, for justice has not allowed him to live.'", 5.0f);
-                            }
-                        } else if (TextIsEqual(npcName, "Guard")) {
-                        } else if (TextIsEqual(npcName, "Roman Believer 1") ||
-                                   TextIsEqual(npcName, "Roman Believer 2") ||
-                                   TextIsEqual(npcName, "Roman Believer 3") ||
-                                   TextIsEqual(npcName, "Centurion")) {
-                            HandleRomeNpcInteraction(&player, &world, npcName);
-                        } else {
-                            ShowWorldMessage(&player, TextFormat("%s pauses as you approach.", npcName), 3.0f);
-                        }
-                    } else {
-                        int itemIdx = GetClickedItem(&world, ray);
-                        int decoIdx = GetClickedDecoration(&world, ray);
-
-                        if (itemIdx != -1) {
-                            if (AddToInventory(&player, world.state.items[itemIdx].itemId)) {
-                                world.state.items[itemIdx].active = false;
-                            }
-                        } else if (decoIdx != -1) {
-                            if (world.state.decos[decoIdx].type == DECO_FIRE_PIT_UNLIT) {
-                                world.state.decos[decoIdx].type = DECO_FIRE_PIT;
-                                for (int i = 0; i < MAX_DECORATIONS; i++) {
-                                    if (world.state.decos[i].position.x == world.state.snakePos.x &&
-                                        world.state.decos[i].position.z == world.state.snakePos.z &&
-                                        world.state.decos[i].type == DECO_NONE) {
-                                        world.state.decos[i].type = DECO_SNAKE;
-                                        break;
-                                    }
-                                }
-                                ShowWorldMessage(&player, "A viper fastens on your hand! The islanders watch closely...", 5.0f);
-                                snakeEventTimer = 8.0f;
-                            } else if (world.state.decos[decoIdx].type == DECO_FIRE_PIT) {
-                                ShowWorldMessage(&player, "The fire burns warmly.", 3.0f);
-                            }
-                        } else if (!isFirstPerson) {
-                            Vector3Int gridClick = GetGridClicked(ray);
-                            if (gridClick.y != -1) {
-                                FindPath(&world, &player, gridClick);
-                            }
-                        }
-                    }
+    if (game->snakeEventTimer > 0.0f) {
+        game->snakeEventTimer -= GetFrameTime();
+        if (game->snakeEventTimer <= 0.0f && game->world.state.worldId == WORLD_MALTA) {
+            for (int i = 0; i < MAX_DECORATIONS; i++) {
+                if (game->world.state.decos[i].type == DECO_SNAKE) {
+                    game->world.state.decos[i].type = DECO_NONE;
                 }
+            }
+            ShowWorldMessage(&game->player, "You shake off the creature into the fire and suffer no harm.", 5.0f);
+        }
+    }
 
-            if (combat.active) {
-                UpdateCombat(&combat, &player);
-            } else {
-                bool travelStarted = false;
+    if (game->shipMinigame.active) {
+        UpdateShipMinigame(&game->shipMinigame);
+    } else {
+        if (IsActionTogglePressed(game, KEY_F1, KEY_ONE)) EnterFirstPerson(game);
 
-                UpdateGuardDialogue(&player, &world);
+        if (IsActionTogglePressed(game, KEY_F2, KEY_TWO)) {
+            if (game->shadowPipelineReady) {
+                game->shadersEnabled = !game->shadersEnabled;
+            } else if (SPPS_PLATFORM_WEB) {
+                ShowWorldMessage(&game->player, "Browser build: shadow shaders are disabled for compatibility.", 4.0f);
+            }
+        }
 
-                int portIdx = GetPortAt(&world, player.position);
-                if (portIdx != -1 && IsKeyPressed(KEY_T) && !player.guardDialogueActive) {
-                    if (world.state.worldId == WORLD_MALTA && !IsMaltaSnakeResolved(&world)) {
-                        ShowWorldMessage(&player, "Captain: 'We must wait for the winter storms to pass.'", 4.0f);
+        if (IsActionTogglePressed(game, KEY_F3, KEY_THREE)) ExitFirstPerson(game);
+
+        if (IsActionTogglePressed(game, KEY_F5, KEY_FIVE)) {
+            game->settings.showDebugUI = !game->settings.showDebugUI;
+            if (game->settings.showDebugUI) EnableCursor();
+        }
+
+        if (game->isFirstPerson) {
+            Vector2 delta = GetMouseDelta();
+            game->player.yaw -= delta.x * 0.005f;
+            game->player.pitch += delta.y * -0.005f;
+            if (game->player.pitch > PI / 2.5f) game->player.pitch = PI / 2.5f;
+            if (game->player.pitch < -PI / 2.5f) game->player.pitch = -PI / 2.5f;
+
+            game->camera.position = (Vector3){game->player.lerpPosition.x, 1.6f, game->player.lerpPosition.z};
+            Vector3 look = {
+                cosf(game->player.pitch) * sinf(game->player.yaw),
+                sinf(game->player.pitch),
+                cosf(game->player.pitch) * cosf(game->player.yaw)
+            };
+            game->camera.target = Vector3Add(game->camera.position, look);
+            game->camera.fovy = 60.0f;
+        } else {
+            game->camera.target = game->player.lerpPosition;
+            game->camera.position = (Vector3){game->player.lerpPosition.x + 8.0f, 8.0f, game->player.lerpPosition.z + 8.0f};
+            game->camera.fovy = 45.0f;
+        }
+
+        if (!game->settings.showDebugUI && !game->combat.active && !game->player.guardDialogueActive && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+            Ray ray = game->isFirstPerson
+                ? GetMouseRay((Vector2){(float)GetScreenWidth() / 2, (float)GetScreenHeight() / 2}, game->camera)
+                : GetMouseRay(GetMousePosition(), game->camera);
+
+            int npcIdx = GetClickedNPC(&game->world, ray);
+            if (npcIdx != -1) {
+                const char *npcName = game->world.state.npcs[npcIdx].name;
+
+                if (TextIsEqual(npcName, "Pharisee")) {
+                    StartCombat(&game->combat, npcName);
+                } else if (TextIsEqual(npcName, "Islander")) {
+                    bool nearSnake =
+                        abs(game->player.position.x - game->world.state.snakePos.x) <= 6 &&
+                        abs(game->player.position.z - game->world.state.snakePos.z) <= 6;
+                    if (game->world.state.worldId == WORLD_MALTA && nearSnake && IsMaltaSnakeResolved(&game->world)) {
+                        ShowWorldMessage(&game->player, "Islander: 'He must be a god! He suffered no harm!'", 5.0f);
                     } else {
-                        isFirstPerson = false;
-                        EnableCursor();
-                        HandlePortTravel(&player, &world, &shipMinigame, portIdx);
-                        travelStarted = shipMinigame.active;
+                        ShowWorldMessage(&game->player, "Islander: 'No doubt this man is a murderer, for justice has not allowed him to live.'", 5.0f);
                     }
+                } else if (TextIsEqual(npcName, "Roman Believer 1") ||
+                           TextIsEqual(npcName, "Roman Believer 2") ||
+                           TextIsEqual(npcName, "Roman Believer 3") ||
+                           TextIsEqual(npcName, "Centurion")) {
+                    HandleRomeNpcInteraction(&game->player, &game->world, npcName);
+                } else if (!TextIsEqual(npcName, "Guard")) {
+                    ShowWorldMessage(&game->player, TextFormat("%s pauses as you approach.", npcName), 3.0f);
                 }
+            } else {
+                int itemIdx = GetClickedItem(&game->world, ray);
+                int decoIdx = GetClickedDecoration(&game->world, ray);
 
-                if (!travelStarted) {
-                    if (!player.gameComplete && !player.guardDialogueActive) {
-                        UpdatePlayer(&player, &world, isFirstPerson);
+                if (itemIdx != -1) {
+                    if (AddToInventory(&game->player, game->world.state.items[itemIdx].itemId)) {
+                        game->world.state.items[itemIdx].active = false;
                     }
-                    UpdateWorld(&world, &player);
-
-                    if (!player.guardDialogueActive && IsKeyPressed(KEY_C)) TryCraftTent(&player);
-                    if (!player.guardDialogueActive && IsKeyPressed(KEY_I)) player.showInventory = !player.showInventory;
-                    if (!player.guardDialogueActive && IsKeyPressed(KEY_M)) player.showMap = !player.showMap;
+                } else if (decoIdx != -1) {
+                    if (game->world.state.decos[decoIdx].type == DECO_FIRE_PIT_UNLIT) {
+                        game->world.state.decos[decoIdx].type = DECO_FIRE_PIT;
+                        for (int i = 0; i < MAX_DECORATIONS; i++) {
+                            if (game->world.state.decos[i].position.x == game->world.state.snakePos.x &&
+                                game->world.state.decos[i].position.z == game->world.state.snakePos.z &&
+                                game->world.state.decos[i].type == DECO_NONE) {
+                                game->world.state.decos[i].type = DECO_SNAKE;
+                                break;
+                            }
+                        }
+                        ShowWorldMessage(&game->player, "A viper fastens on your hand! The islanders watch closely...", 5.0f);
+                        game->snakeEventTimer = 8.0f;
+                    } else if (game->world.state.decos[decoIdx].type == DECO_FIRE_PIT) {
+                        ShowWorldMessage(&game->player, "The fire burns warmly.", 3.0f);
+                    }
+                } else if (!game->isFirstPerson) {
+                    Vector3Int gridClick = GetGridClicked(ray);
+                    if (gridClick.y != -1) {
+                        FindPath(&game->world, &game->player, gridClick);
+                    }
                 }
             }
         }
 
-        BeginDrawing();
-        if (shipMinigame.active) {
-            DrawShipMinigame(&shipMinigame, GetScreenWidth(), GetScreenHeight());
-            EndDrawing();
-            continue;
-        }
+        if (game->combat.active) {
+            UpdateCombat(&game->combat, &game->player);
+        } else {
+            bool travelStarted = false;
 
-        Matrix lightView;
-        Matrix lightProj;
+            UpdateGuardDialogue(&game->player, &game->world);
+
+            int portIdx = GetPortAt(&game->world, game->player.position);
+            if (portIdx != -1 && IsKeyPressed(KEY_T) && !game->player.guardDialogueActive) {
+                if (game->world.state.worldId == WORLD_MALTA && !IsMaltaSnakeResolved(&game->world)) {
+                    ShowWorldMessage(&game->player, "Captain: 'We must wait for the winter storms to pass.'", 4.0f);
+                } else {
+                    ExitFirstPerson(game);
+                    HandlePortTravel(&game->player, &game->world, &game->shipMinigame, portIdx);
+                    travelStarted = game->shipMinigame.active;
+                }
+            }
+
+            if (!travelStarted) {
+                if (!game->player.gameComplete && !game->player.guardDialogueActive) {
+                    UpdatePlayer(&game->player, &game->world, game->isFirstPerson);
+                }
+                UpdateWorld(&game->world, &game->player);
+
+                if (!game->player.guardDialogueActive && IsKeyPressed(KEY_C)) TryCraftTent(&game->player);
+                if (!game->player.guardDialogueActive && IsKeyPressed(KEY_I)) game->player.showInventory = !game->player.showInventory;
+                if (!game->player.guardDialogueActive && IsKeyPressed(KEY_M)) game->player.showMap = !game->player.showMap;
+            }
+        }
+    }
+
+    BeginDrawing();
+    if (game->shipMinigame.active) {
+        DrawShipMinigame(&game->shipMinigame, GetScreenWidth(), GetScreenHeight());
+        EndDrawing();
+        SppsInputFrameEnd();
+        return;
+    }
+
+    bool drawShadows = game->shadersEnabled && game->shadowPipelineReady;
+    Matrix lightProj = {0};
+    Matrix lightVP = {0};
+    Vector3 lightDir = game->settings.lightDir;
+    Vector3 lightUp = {0};
+    Vector3 lightCamPos = {0};
+    Vector3 center = game->isFirstPerson ? game->player.lerpPosition : game->camera.target;
+
+    if (drawShadows) {
         float shadowBoxSize = 60.0f;
-        Vector3 lightDir = settings.lightDir;
         if (Vector3LengthSqr(lightDir) < 0.0001f) lightDir = (Vector3){0.0f, 1.0f, 0.0f};
         lightDir = Vector3Normalize(lightDir);
         float lightDistance = 40.0f;
         Vector3 lightPos = Vector3Scale(lightDir, lightDistance);
-        Vector3 center = isFirstPerson ? player.lerpPosition : camera.target;
-        Vector3 lightUp = fabsf(Vector3DotProduct(lightDir, (Vector3){0, 1, 0})) > 0.98f
-                        ? (Vector3){0, 0, 1}
-                        : (Vector3){0, 1, 0};
-        Vector3 lightCamPos = Vector3Add(center, lightPos);
-        lightView = MatrixLookAt(lightCamPos, center, lightUp);
+        lightUp = fabsf(Vector3DotProduct(lightDir, (Vector3){0, 1, 0})) > 0.98f
+                ? (Vector3){0, 0, 1}
+                : (Vector3){0, 1, 0};
+        lightCamPos = Vector3Add(center, lightPos);
+        Matrix lightView = MatrixLookAt(lightCamPos, center, lightUp);
         lightProj = MatrixOrtho(-shadowBoxSize, shadowBoxSize, -shadowBoxSize, shadowBoxSize, 1.0f, 150.0f);
-        Matrix lightVP = MatrixMultiply(lightProj, lightView);
+        lightVP = MatrixMultiply(lightProj, lightView);
 
-        if (shadersEnabled) {
-            BeginTextureMode(shadowMap);
-                ClearBackground(WHITE);
-                BeginMode3D((Camera3D){lightCamPos, center, lightUp, 90.0f, CAMERA_ORTHOGRAPHIC});
-                    rlSetMatrixProjection(lightProj);
-                    BeginShaderMode(depthShader);
-                        rlDisableBackfaceCulling();
-                        DrawWorld(&world, (Camera3D){lightCamPos, center, lightUp, 40.0f, CAMERA_ORTHOGRAPHIC}, false);
-                        rlEnableBackfaceCulling();
-                    EndShaderMode();
-                EndMode3D();
-            EndTextureMode();
-        }
-
-        ClearBackground(SKYBLUE);
-        BeginMode3D(camera);
-            if (shadersEnabled) {
-                SetShaderValueMatrix(shadowShader, lightVPLoc, lightVP);
-                SetShaderValue(shadowShader, shadowShader.locs[SHADER_LOC_VECTOR_VIEW], &camera.position, SHADER_UNIFORM_VEC3);
-                SetShaderValue(shadowShader, lightDirLoc, &lightDir, SHADER_UNIFORM_VEC3);
-
-                Vector3 lightColorVec = {
-                    (float)settings.lightColor.r / 255.0f,
-                    (float)settings.lightColor.g / 255.0f,
-                    (float)settings.lightColor.b / 255.0f
-                };
-                SetShaderValue(shadowShader, lightColorLoc, &lightColorVec, SHADER_UNIFORM_VEC3);
-                SetShaderValue(shadowShader, ambientLoc, &settings.ambient, SHADER_UNIFORM_FLOAT);
-                SetShaderValue(shadowShader, shadowBiasLoc, &settings.shadowBias, SHADER_UNIFORM_FLOAT);
-
-                rlActiveTextureSlot(1);
-                rlEnableTexture(shadowMap.texture.id);
-                rlActiveTextureSlot(0);
-
-                int slot = 1;
-                SetShaderValue(shadowShader, shadowMapLoc, &slot, SHADER_UNIFORM_INT);
-                BeginShaderMode(shadowShader);
-            }
-
-            DrawWorld(&world, camera, shadersEnabled);
-            if (!isFirstPerson) DrawPlayer(&player, camera, shadersEnabled);
-
-            if (shadersEnabled) {
+        BeginTextureMode(game->shadowMap);
+            ClearBackground(WHITE);
+            BeginMode3D((Camera3D){lightCamPos, center, lightUp, 90.0f, CAMERA_ORTHOGRAPHIC});
+                rlSetMatrixProjection(lightProj);
+                BeginShaderMode(game->depthShader);
+                    rlDisableBackfaceCulling();
+                    DrawWorld(&game->world, (Camera3D){lightCamPos, center, lightUp, 40.0f, CAMERA_ORTHOGRAPHIC}, false);
+                    rlEnableBackfaceCulling();
                 EndShaderMode();
-                rlActiveTextureSlot(1);
-                rlDisableTexture();
-                rlActiveTextureSlot(0);
-            }
-
-            if (world.state.portCount > 0 && world.state.nextWorldId != WORLD_NONE) {
-                Vector3Int p = world.state.ports[0].position;
-                Vector3 base = {(float)p.x, 0.0f, (float)p.z};
-                DrawCylinder(base, 0.35f, 0.35f, 2.0f, 8, Fade(YELLOW, 0.7f));
-                DrawSphere((Vector3){base.x, 2.2f, base.z}, 0.2f, YELLOW);
-            }
-
-            if (!combat.active &&
-                Vector3Distance(player.lerpPosition,
-                                (Vector3){(float)player.target.x, (float)player.target.y, (float)player.target.z}) > 0.1f) {
-                DrawCircle3D((Vector3){(float)player.target.x, 0.01f, (float)player.target.z},
-                             0.5f,
-                             (Vector3){1, 0, 0},
-                             90.0f,
-                             Fade(YELLOW, 0.5f));
-            }
-        EndMode3D();
-
-        DrawInventory(&player);
-        DrawSkills(&player);
-        DrawHUD(&player, &world, isFirstPerson);
-        DrawGuardDialogue(&player, &world);
-
-        if (combat.active) DrawCombatUI(&combat, GetScreenWidth(), GetScreenHeight());
-
-        DrawText("Point & Click to move across the Mediterranean", 10, GetScreenHeight() - 45, 15, WHITE);
-        DrawFPS(10, GetScreenHeight() - 25);
-        DrawShaderDebugUI(&settings);
-        EndDrawing();
+            EndMode3D();
+        EndTextureMode();
     }
 
-    UnloadShader(shadowShader);
-    UnloadShader(depthShader);
-    UnloadRenderTexture(shadowMap);
-    UnloadShipMinigame();
-    UnloadModels();
-    CloseWindow();
+    ClearBackground(SKYBLUE);
+    BeginMode3D(game->camera);
+        if (drawShadows) {
+            SetShaderValueMatrix(game->shadowShader, game->lightVPLoc, lightVP);
+            SetShaderValue(game->shadowShader, game->shadowShader.locs[SHADER_LOC_VECTOR_VIEW], &game->camera.position, SHADER_UNIFORM_VEC3);
+            SetShaderValue(game->shadowShader, game->lightDirLoc, &lightDir, SHADER_UNIFORM_VEC3);
+
+            Vector3 lightColorVec = {
+                (float)game->settings.lightColor.r / 255.0f,
+                (float)game->settings.lightColor.g / 255.0f,
+                (float)game->settings.lightColor.b / 255.0f
+            };
+            SetShaderValue(game->shadowShader, game->lightColorLoc, &lightColorVec, SHADER_UNIFORM_VEC3);
+            SetShaderValue(game->shadowShader, game->ambientLoc, &game->settings.ambient, SHADER_UNIFORM_FLOAT);
+            SetShaderValue(game->shadowShader, game->shadowBiasLoc, &game->settings.shadowBias, SHADER_UNIFORM_FLOAT);
+
+            rlActiveTextureSlot(1);
+            rlEnableTexture(game->shadowMap.texture.id);
+            rlActiveTextureSlot(0);
+
+            int slot = 1;
+            SetShaderValue(game->shadowShader, game->shadowMapLoc, &slot, SHADER_UNIFORM_INT);
+            BeginShaderMode(game->shadowShader);
+        }
+
+        DrawWorld(&game->world, game->camera, drawShadows);
+        if (!game->isFirstPerson) DrawPlayer(&game->player, game->camera, drawShadows);
+
+        if (drawShadows) {
+            EndShaderMode();
+            rlActiveTextureSlot(1);
+            rlDisableTexture();
+            rlActiveTextureSlot(0);
+        }
+
+        if (game->world.state.portCount > 0 && game->world.state.nextWorldId != WORLD_NONE) {
+            Vector3Int p = game->world.state.ports[0].position;
+            Vector3 base = {(float)p.x, 0.0f, (float)p.z};
+            DrawCylinder(base, 0.35f, 0.35f, 2.0f, 8, Fade(YELLOW, 0.7f));
+            DrawSphere((Vector3){base.x, 2.2f, base.z}, 0.2f, YELLOW);
+        }
+
+        if (!game->combat.active &&
+            Vector3Distance(game->player.lerpPosition,
+                            (Vector3){(float)game->player.target.x, (float)game->player.target.y, (float)game->player.target.z}) > 0.1f) {
+            DrawCircle3D((Vector3){(float)game->player.target.x, 0.01f, (float)game->player.target.z},
+                         0.5f,
+                         (Vector3){1, 0, 0},
+                         90.0f,
+                         Fade(YELLOW, 0.5f));
+        }
+    EndMode3D();
+
+    DrawInventory(&game->player);
+    DrawSkills(&game->player);
+    DrawHUD(&game->player, &game->world, game->isFirstPerson);
+    DrawGuardDialogue(&game->player, &game->world);
+
+    if (game->combat.active) DrawCombatUI(&game->combat, GetScreenWidth(), GetScreenHeight());
+
+    DrawText("Point & Click to move across the Mediterranean", 10, GetScreenHeight() - (SPPS_PLATFORM_WEB ? 48 : 45), 15, WHITE);
+    if (SPPS_PLATFORM_WEB) {
+        DrawText("Browser: F1/F2/F3/F5 also map to 1/2/3/5. Shift still boosts movement and repair.", 10, GetScreenHeight() - 28, 15, Fade(RAYWHITE, 0.88f));
+    }
+    DrawFPS(GetScreenWidth() - 92, GetScreenHeight() - 28);
+    DrawShaderDebugUI(&game->settings);
+    EndDrawing();
+    SppsInputFrameEnd();
+}
+
+int main(void) {
+    InitializeGame(&g_game);
+
+#if SPPS_PLATFORM_WEB
+    emscripten_set_main_loop_arg(UpdateDrawFrame, &g_game, 0, 1);
+#else
+    while (!WindowShouldClose()) UpdateDrawFrame(&g_game);
+    ShutdownGame(&g_game);
+#endif
+
     return 0;
 }

@@ -1,4 +1,5 @@
 #include "ui.h"
+#include "platform_input.h"
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -562,6 +563,18 @@ void DrawHUD(Player *player, World *world, bool isFirstPerson) {
     if (line2[0] != '\0') {
         DrawText(line2, questStartX + 10, questStartY + 70, 10, WHITE);
     }
+
+    if (SPPS_PLATFORM_WEB) {
+        int panelX = 10;
+        int panelY = GetScreenHeight() - 118;
+        int panelW = 470;
+        int panelH = 62;
+        DrawRectangle(panelX, panelY, panelW, panelH, Fade(BLACK, 0.72f));
+        DrawRectangleLines(panelX, panelY, panelW, panelH, Fade(SKYBLUE, 0.8f));
+        DrawText("WEB CONTROLS", panelX + 12, panelY + 8, 16, GOLD);
+        DrawText("Click the canvas first. F1/F2/F3/F5 also work as 1/2/3/5 in the browser.", panelX + 12, panelY + 28, 15, RAYWHITE);
+        DrawText("Shift still boosts movement and voyage recovery.", panelX + 12, panelY + 44, 15, Fade(RAYWHITE, 0.88f));
+    }
 }
 
 void DrawGuardDialogue(Player *player, World *world) {
@@ -686,10 +699,11 @@ void DrawShaderDebugUI(ShaderSettings *settings) {
     // Save Button
     Rectangle saveBtn = { (float)x + 20, (float)startY + spacing*9, 100, 30 };
     bool hovered = CheckCollisionPointRec(GetMousePosition(), saveBtn);
-    DrawRectangleRec(saveBtn, hovered ? GREEN : DARKGRAY);
-    DrawText("SAVE", saveBtn.x + 30, saveBtn.y + 8, 10, WHITE);
+    bool saveEnabled = !SPPS_PLATFORM_WEB;
+    DrawRectangleRec(saveBtn, saveEnabled ? (hovered ? GREEN : DARKGRAY) : GRAY);
+    DrawText(saveEnabled ? "SAVE" : "BROWSER", saveBtn.x + (saveEnabled ? 30 : 20), saveBtn.y + 8, 10, WHITE);
     
-    if (hovered && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+    if (saveEnabled && hovered && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
         FILE *f = fopen("shader_settings.txt", "w");
         if (f) {
             fprintf(f, "%f %f %f\n", settings->lightDir.x, settings->lightDir.y, settings->lightDir.z);
@@ -698,5 +712,9 @@ void DrawShaderDebugUI(ShaderSettings *settings) {
             fprintf(f, "%f\n", settings->shadowBias);
             fclose(f);
         }
+    }
+
+    if (SPPS_PLATFORM_WEB) {
+        DrawText("Shader saving is disabled in the browser build.", x + 140, startY + spacing*9 + 8, 10, LIGHTGRAY);
     }
 }

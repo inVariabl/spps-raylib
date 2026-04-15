@@ -1,0 +1,401 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>St. Paul's Postal Service</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #09111d;
+        --panel: rgba(12, 22, 37, 0.9);
+        --panel-border: rgba(186, 154, 87, 0.6);
+        --text: #f2ece1;
+        --muted: #b5bfd0;
+        --accent: #d8aa55;
+        --accent-strong: #f0c069;
+        --danger: #d26a4a;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        font-family: Georgia, "Times New Roman", serif;
+        color: var(--text);
+        background:
+          radial-gradient(circle at top, rgba(224, 164, 83, 0.18), transparent 35%),
+          linear-gradient(180deg, #122338 0%, #09111d 45%, #060b13 100%);
+      }
+
+      main {
+        width: min(1240px, 100%);
+        margin: 0 auto;
+        padding: 24px 18px 28px;
+      }
+
+      .hero {
+        display: grid;
+        gap: 18px;
+        margin-bottom: 18px;
+      }
+
+      .panel {
+        background: var(--panel);
+        border: 1px solid var(--panel-border);
+        border-radius: 18px;
+        box-shadow: 0 18px 48px rgba(0, 0, 0, 0.28);
+      }
+
+      .intro {
+        padding: 18px 20px;
+      }
+
+      .title {
+        margin: 0 0 8px;
+        font-size: clamp(2rem, 4vw, 3.4rem);
+        line-height: 1;
+      }
+
+      .subtitle {
+        margin: 0;
+        color: var(--muted);
+        font-size: 1.02rem;
+      }
+
+      .toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        padding: 0 20px 18px;
+      }
+
+      button {
+        border: 1px solid rgba(240, 192, 105, 0.45);
+        border-radius: 999px;
+        background: rgba(216, 170, 85, 0.12);
+        color: var(--text);
+        padding: 10px 14px;
+        font: inherit;
+        cursor: pointer;
+        transition: background 120ms ease, border-color 120ms ease, transform 120ms ease;
+      }
+
+      button:hover {
+        background: rgba(216, 170, 85, 0.2);
+        border-color: rgba(240, 192, 105, 0.8);
+        transform: translateY(-1px);
+      }
+
+      .controls {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        gap: 14px;
+        margin-bottom: 18px;
+        padding: 16px 18px;
+      }
+
+      .controls h2 {
+        margin: 0 0 8px;
+        font-size: 1rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--accent-strong);
+      }
+
+      .controls p {
+        margin: 6px 0 0;
+        color: var(--muted);
+        line-height: 1.45;
+      }
+
+      .statusbar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px 18px;
+        align-items: center;
+        padding: 0 20px 18px;
+        color: var(--muted);
+      }
+
+      .spinner {
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        border: 2px solid rgba(242, 236, 225, 0.2);
+        border-top-color: var(--accent-strong);
+        animation: spin 0.9s linear infinite;
+      }
+
+      .canvas-wrap {
+        overflow: hidden;
+        padding: 14px;
+      }
+
+      canvas {
+        display: block;
+        width: 100%;
+        aspect-ratio: 16 / 9;
+        border: 0;
+        border-radius: 12px;
+        background: #000;
+        outline: none;
+      }
+
+      #output {
+        margin: 16px 0 0;
+        padding: 14px 16px;
+        border-top: 1px solid rgba(255, 255, 255, 0.08);
+        color: #b8c59d;
+        font: 0.9rem/1.45 "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+        white-space: pre-wrap;
+        max-height: 180px;
+        overflow: auto;
+      }
+
+      .warning {
+        color: #ffd8b0;
+      }
+
+      .notice {
+        margin: 0 20px 18px;
+        padding: 14px 16px;
+        border: 1px solid rgba(210, 106, 74, 0.45);
+        border-radius: 14px;
+        background: rgba(210, 106, 74, 0.12);
+        color: #ffe0d4;
+        line-height: 1.45;
+      }
+
+      @keyframes spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+      }
+
+      @media (max-width: 700px) {
+        main {
+          padding-inline: 10px;
+        }
+
+        .intro,
+        .toolbar,
+        .statusbar,
+        .controls {
+          padding-inline: 14px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <section class="hero panel">
+        <div class="intro">
+          <h1 class="title">St. Paul's Postal Service</h1>
+          <p class="subtitle">Browser build. Click the canvas before playing so the game can keep function keys, arrows, tab, and shift under your control.</p>
+        </div>
+        <div class="notice">
+          This web version is not the full desktop game. It is a lightweight browser build with simplified rendering and without the full GLB model presentation.
+        </div>
+        <div class="toolbar">
+          <button type="button" onclick="focusCanvas()">Focus Canvas</button>
+          <button type="button" onclick="requestGameFullscreen()">Fullscreen</button>
+          <button type="button" onclick="pulseGameKey('F1')">F1 / 1</button>
+          <button type="button" onclick="pulseGameKey('F2')">F2 / 2</button>
+          <button type="button" onclick="pulseGameKey('F3')">F3 / 3</button>
+          <button type="button" onclick="pulseGameKey('F5')">F5 / 5</button>
+          <button type="button" onclick="window.open('https://github.com/inVariabl/spps-raylib', '_blank', 'noopener')">Get Full Game</button>
+        </div>
+        <div class="controls">
+          <div>
+            <h2>Primary Controls</h2>
+            <p>`F1` or `1` enters first-person view.</p>
+            <p>`F3` or `3` returns to the isometric view.</p>
+            <p>`WASD`, arrows, and mouse input behave the same as desktop once the canvas is focused.</p>
+          </div>
+          <div>
+            <h2>Browser Notes</h2>
+            <p>The page now bridges browser keyboard events straight into the game for `F1`, `F2`, `F3`, `F5`, arrows, `TAB`, `SPACE`, both shift keys, and the main letter controls.</p>
+            <p class="warning">The web build disables the custom shadow shader path for compatibility, so `F2` will not turn desktop shadows back on.</p>
+          </div>
+          <div>
+            <h2>Voyage Controls</h2>
+            <p>Arrow keys steer the ship. `Shift` still boosts repairs and morale exactly as it does on desktop.</p>
+            <p>`TAB` still swaps to the below-deck view during the voyage.</p>
+          </div>
+        </div>
+        <div class="statusbar">
+          <div class="spinner" id="spinner"></div>
+          <div id="status">Downloading WebAssembly build...</div>
+          <progress id="progress" value="0" max="100" hidden></progress>
+        </div>
+      </section>
+
+      <section class="panel canvas-wrap">
+        <canvas id="canvas" tabindex="0" oncontextmenu="event.preventDefault()"></canvas>
+        <pre id="output"></pre>
+      </section>
+    </main>
+
+    <script>
+      const canvas = document.getElementById("canvas");
+      const statusElement = document.getElementById("status");
+      const progressElement = document.getElementById("progress");
+      const spinnerElement = document.getElementById("spinner");
+      const outputElement = document.getElementById("output");
+      const keyMap = {
+        Digit1: 49,
+        Digit2: 50,
+        Digit3: 51,
+        Digit4: 52,
+        Digit5: 53,
+        KeyA: 65,
+        KeyC: 67,
+        KeyD: 68,
+        KeyE: 69,
+        KeyI: 73,
+        KeyM: 77,
+        KeyS: 83,
+        KeyT: 84,
+        KeyW: 87,
+        Space: 32,
+        Escape: 256,
+        Enter: 257,
+        Tab: 258,
+        ArrowRight: 262,
+        ArrowLeft: 263,
+        ArrowDown: 264,
+        ArrowUp: 265,
+        F1: 290,
+        F2: 291,
+        F3: 292,
+        F4: 293,
+        F5: 294,
+        ShiftLeft: 340,
+        ShiftRight: 344
+      };
+      const blockedKeys = new Set([
+        "F1", "F2", "F3", "F5",
+        "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight",
+        "Tab", "Space", "Shift", "ShiftLeft", "ShiftRight"
+      ]);
+
+      function focusCanvas() {
+        canvas.focus({ preventScroll: true });
+      }
+
+      function requestGameFullscreen() {
+        focusCanvas();
+        if (canvas.requestFullscreen) canvas.requestFullscreen();
+      }
+
+      function callGameInput(name, value, state) {
+        if (typeof Module.ccall !== "function") return;
+        if (typeof state === "number") {
+          Module.ccall(name, null, ["number", "number"], [value, state]);
+        } else if (typeof value === "number") {
+          Module.ccall(name, null, ["number"], [value]);
+        } else {
+          Module.ccall(name, null, [], []);
+        }
+      }
+
+      function pulseGameKey(code) {
+        focusCanvas();
+        const key = keyMap[code];
+        if (typeof key === "number") callGameInput("SPPS_WebPulseKey", key);
+      }
+
+      function suppressBrowserShortcuts(event) {
+        const key = event.code || event.key;
+        if (!blockedKeys.has(key) && !blockedKeys.has(event.key)) return;
+        event.preventDefault();
+      }
+
+      function bridgeKeyboardEvent(event, down) {
+        suppressBrowserShortcuts(event);
+        const code = event.code || event.key;
+        const mapped = keyMap[code];
+        if (typeof mapped === "number") {
+          focusCanvas();
+          callGameInput("SPPS_WebSetKeyState", mapped, down ? 1 : 0);
+        }
+      }
+
+      window.addEventListener("keydown", function(event) {
+        bridgeKeyboardEvent(event, true);
+      }, { capture: true });
+      window.addEventListener("keyup", function(event) {
+        bridgeKeyboardEvent(event, false);
+      }, { capture: true });
+      canvas.addEventListener("pointerdown", focusCanvas);
+      window.addEventListener("blur", function() {
+        callGameInput("SPPS_WebResetInputs");
+      });
+
+      var Module = {
+        preRun: [],
+        postRun: [],
+        canvas: canvas,
+        print: function(text) {
+          outputElement.textContent += text + "\n";
+          outputElement.scrollTop = outputElement.scrollHeight;
+        },
+        printErr: function(text) {
+          console.error(text);
+          outputElement.textContent += text + "\n";
+          outputElement.scrollTop = outputElement.scrollHeight;
+        },
+        setStatus: function(text) {
+          statusElement.textContent = text;
+        },
+        monitorRunDependencies: function(left) {
+          if (left === 0) {
+            spinnerElement.style.display = "none";
+            progressElement.hidden = true;
+            statusElement.textContent = "Loaded. Click the canvas to focus the game.";
+            focusCanvas();
+            return;
+          }
+
+          spinnerElement.style.display = "inline-block";
+          progressElement.hidden = false;
+          progressElement.value = Module.totalDependencies - left;
+          progressElement.max = Module.totalDependencies;
+          statusElement.textContent = "Loading data files...";
+        },
+        totalDependencies: 0
+      };
+
+      Module.monitorRunDependencies = function(left) {
+        if (!Module.totalDependencies) Module.totalDependencies = left;
+        if (left === 0) {
+          spinnerElement.style.display = "none";
+          progressElement.hidden = true;
+          statusElement.textContent = "Loaded. Click the canvas to focus the game.";
+          focusCanvas();
+          return;
+        }
+
+        spinnerElement.style.display = "inline-block";
+        progressElement.hidden = false;
+        progressElement.value = Module.totalDependencies - left;
+        progressElement.max = Module.totalDependencies;
+        statusElement.textContent = "Loading data files...";
+      };
+
+      canvas.addEventListener("webglcontextlost", function(event) {
+        event.preventDefault();
+        statusElement.textContent = "WebGL context lost. Reload the page to continue.";
+      });
+
+      window.addEventListener("error", function(event) {
+        statusElement.textContent = "The browser build hit an error. Check the log below.";
+        console.error(event.error || event.message);
+      });
+    </script>
+    {{{ SCRIPT }}}
+  </body>
+</html>

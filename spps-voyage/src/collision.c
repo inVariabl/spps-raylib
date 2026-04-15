@@ -5,7 +5,7 @@
 // ----------------------------------------------------------------
 static BoundingBox WorldBox(const GameObject* obj)
 {
-    BoundingBox box = GetModelBoundingBox(obj->model);
+    BoundingBox box = IsModelValid(obj->model) ? GetModelBoundingBox(obj->model) : obj->bounds;
     box.min = Vector3Add(box.min, obj->position);
     box.max = Vector3Add(box.max, obj->position);
     return box;

@@ -5,6 +5,7 @@
 #include "objects.h"
 #include "ocean.h"
 #include "spawner.h"
+#include "platform_input.h"
 #include "collision.h"
 #include "crew.h"
 #include "interior.h"

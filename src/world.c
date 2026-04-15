@@ -1,4 +1,5 @@
 #include "world.h"
+#include "platform_input.h"
 #include "rlgl.h"
 #include <math.h>
 #include <stddef.h>

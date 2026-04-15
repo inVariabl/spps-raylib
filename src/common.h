@@ -4,6 +4,12 @@
 #include "raylib.h"
 #include "raymath.h"
 
+#if defined(PLATFORM_WEB) || defined(__EMSCRIPTEN__)
+#define SPPS_PLATFORM_WEB 1
+#else
+#define SPPS_PLATFORM_WEB 0
+#endif
+
 // --- Configuration ---
 #define INVENTORY_SIZE 28
 #define MAX_GROUND_ITEMS 50

@@ -11,6 +11,8 @@ static bool  s_modelLoaded = false;
 
 void InitCrewModel(void)
 {
+    if (!FileExists("spps-voyage/models/roman_character.glb")) return;
+
     s_model = LoadModel("spps-voyage/models/roman_character.glb");
 
     if (!IsModelValid(s_model))

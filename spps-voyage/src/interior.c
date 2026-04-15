@@ -1,4 +1,5 @@
 #include "interior.h"
+#include "platform_input.h"
 
 #define PAUL_SPEED      8.0f    // units per second (run speed)
 #define PAUL_TURN_SPD  160.0f   // degrees per second (A/D turning)

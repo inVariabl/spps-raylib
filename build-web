@@ -1,0 +1,56 @@
+#!/bin/sh
+
+set -eu
+
+BUILD_DIR="${1:-out-web-lite}"
+MODE="${2:-lite}"
+
+if [ "$BUILD_DIR" = "lite" ] || [ "$BUILD_DIR" = "full" ]; then
+    MODE="$BUILD_DIR"
+    if [ "$MODE" = "lite" ]; then
+        BUILD_DIR="out-web-lite"
+    else
+        BUILD_DIR="out-web"
+    fi
+fi
+
+LITE_FLAG=OFF
+if [ "$MODE" = "lite" ]; then
+    LITE_FLAG=ON
+fi
+
+rm -f "$BUILD_DIR/main.data" "$BUILD_DIR/main.data.js"
+
+emcmake cmake -S . -B "$BUILD_DIR" -DCMAKE_BUILD_TYPE=Release -DSPPS_WEB_LITE="$LITE_FLAG"
+cmake --build "$BUILD_DIR"
+cp "$BUILD_DIR/main.html" "$BUILD_DIR/index.html"
+: > "$BUILD_DIR/.nojekyll"
+
+if [ "${SPPS_WEB_DOMAIN:-}" != "" ]; then
+    printf '%s\n' "$SPPS_WEB_DOMAIN" > "$BUILD_DIR/CNAME"
+fi
+
+SITE_DIR="$BUILD_DIR/site"
+rm -rf "$SITE_DIR"
+mkdir -p "$SITE_DIR"
+cp "$BUILD_DIR/main.html" "$SITE_DIR/main.html"
+cp "$BUILD_DIR/index.html" "$SITE_DIR/index.html"
+cp "$BUILD_DIR/main.js" "$SITE_DIR/main.js"
+cp "$BUILD_DIR/main.wasm" "$SITE_DIR/main.wasm"
+cp "$BUILD_DIR/.nojekyll" "$SITE_DIR/.nojekyll"
+
+if [ -f "$BUILD_DIR/main.data" ]; then
+    cp "$BUILD_DIR/main.data" "$SITE_DIR/main.data"
+fi
+
+if [ -f "$BUILD_DIR/main.data.js" ]; then
+    cp "$BUILD_DIR/main.data.js" "$SITE_DIR/main.data.js"
+fi
+
+if [ -f "$BUILD_DIR/CNAME" ]; then
+    cp "$BUILD_DIR/CNAME" "$SITE_DIR/CNAME"
+fi
+
+printf '\nBuilt browser files in %s\n' "$BUILD_DIR"
+printf 'Static site files staged in %s\n' "$SITE_DIR"
+printf 'Serve them with:\n  python3 -m http.server --directory %s 8080\n' "$SITE_DIR"

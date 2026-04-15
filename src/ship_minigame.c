@@ -6,6 +6,7 @@
 #include "interior.h"
 #include "objects.h"
 #include "ocean.h"
+#include "platform_input.h"
 #include "spawner.h"
 
 #include <math.h>
@@ -41,6 +42,56 @@ typedef struct {
 
 static VoyageRuntime s_runtime = {0};
 
+static bool VoyageAudioSupported(void) {
+    return !SPPS_PLATFORM_WEB;
+}
+
+static void SetFallbackObject(GameObject *obj, Vector3 pos, BoundingBox bounds) {
+    obj->model = (Model){0};
+    obj->position = pos;
+    obj->bounds = bounds;
+    obj->active = true;
+}
+
+static void TryLoadOrFallback(GameObject *obj, const char *path, Vector3 pos, BoundingBox fallbackBounds) {
+    if (FileExists(path)) {
+        *obj = CreateGameObject(path, pos);
+        if (obj->active) return;
+    }
+
+    SetFallbackObject(obj, pos, fallbackBounds);
+}
+
+static void DrawFallbackBoat(Vector3 pos) {
+    DrawCube((Vector3){pos.x, pos.y + 1.0f, pos.z}, 8.0f, 2.0f, 3.0f, BROWN);
+    DrawCube((Vector3){pos.x, pos.y + 2.2f, pos.z}, 4.5f, 1.0f, 2.6f, DARKBROWN);
+    DrawCylinder((Vector3){pos.x, pos.y + 4.8f, pos.z}, 0.22f, 0.22f, 6.4f, 8, DARKBROWN);
+    DrawTriangle3D((Vector3){pos.x, pos.y + 7.1f, pos.z},
+                   (Vector3){pos.x, pos.y + 3.5f, pos.z},
+                   (Vector3){pos.x + 3.5f, pos.y + 5.4f, pos.z},
+                   BEIGE);
+    DrawTriangle3D((Vector3){pos.x, pos.y + 7.1f, pos.z},
+                   (Vector3){pos.x + 3.5f, pos.y + 5.4f, pos.z},
+                   (Vector3){pos.x, pos.y + 3.5f, pos.z},
+                   BEIGE);
+}
+
+static void DrawFallbackIsland(Vector3 pos, Vector3 scale) {
+    DrawSphere((Vector3){pos.x, pos.y + 14.0f, pos.z}, 22.0f * scale.x * 0.18f, DARKGREEN);
+    DrawSphere((Vector3){pos.x + 14.0f, pos.y + 9.0f, pos.z + 8.0f}, 15.0f * scale.x * 0.18f, GREEN);
+    DrawSphere((Vector3){pos.x - 16.0f, pos.y + 8.0f, pos.z - 10.0f}, 13.0f * scale.x * 0.18f, LIME);
+}
+
+static void DrawFallbackRock(Vector3 pos) {
+    DrawSphere((Vector3){pos.x, pos.y + 2.1f, pos.z}, 2.1f, GRAY);
+}
+
+static void DrawFallbackGold(Vector3 pos, float spin) {
+    DrawCylinder((Vector3){pos.x, pos.y, pos.z}, 0.9f, 0.9f, 0.25f, 16, GOLD);
+    DrawCylinder((Vector3){pos.x, pos.y + 0.02f, pos.z}, 0.62f, 0.62f, 0.05f, 16, Fade(YELLOW, 0.95f));
+    DrawCircle3D((Vector3){pos.x, 0.03f, pos.z}, 0.55f + 0.05f * sinf(spin), (Vector3){1.0f, 0.0f, 0.0f}, 90.0f, Fade(BLACK, 0.18f));
+}
+
 static bool AnyContinueKeyPressed(void) {
     return IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_SPACE) || IsKeyPressed(KEY_ESCAPE);
 }
@@ -68,33 +119,38 @@ static void StartDeckMusic(void) {
 static bool EnsureVoyageAssetsLoaded(char *resultMessage, size_t resultMessageSize) {
     if (s_runtime.assetsLoaded) return true;
 
-    if (!IsAudioDeviceReady()) {
+    if (VoyageAudioSupported() && !IsAudioDeviceReady()) {
         InitAudioDevice();
         s_runtime.ownsAudioDevice = true;
     }
 
-    s_runtime.boat = CreateGameObject("spps-voyage/models/boat.glb", (Vector3){0.0f, 0.0f, 0.0f});
-    if (!s_runtime.boat.active) {
-        snprintf(resultMessage, resultMessageSize, "%s", "Voyage boat model failed to load.");
-        return false;
-    }
+    TryLoadOrFallback(&s_runtime.boat,
+                      "spps-voyage/models/boat.glb",
+                      (Vector3){0.0f, 0.0f, 0.0f},
+                      (BoundingBox){(Vector3){-4.0f, 0.0f, -1.5f}, (Vector3){4.0f, 6.8f, 1.5f}});
 
-    s_runtime.island = CreateGameObject(
-        "spps-voyage/models/malta_island.glb",
-        (Vector3){FINISH_LINE_X - ISLAND_OFFSET, 0.0f, 0.0f}
-    );
+    TryLoadOrFallback(&s_runtime.island,
+                      "spps-voyage/models/malta_island.glb",
+                      (Vector3){FINISH_LINE_X - ISLAND_OFFSET, 0.0f, 0.0f},
+                      (BoundingBox){(Vector3){-24.0f, 0.0f, -18.0f}, (Vector3){24.0f, 24.0f, 18.0f}});
     s_runtime.islandScale = (Vector3){6.0f, 6.0f, 20.0f};
 
     for (int i = 0; i < MAX_ROCKS; i++) {
         float rx = (float)GetRandomValue(-300, -20);
         float rz = (float)GetRandomValue((int)BOAT_Z_MIN, (int)BOAT_Z_MAX);
-        s_runtime.rocks[i] = CreateGameObject("spps-voyage/models/rock.glb", (Vector3){rx, 0.0f, rz});
+        TryLoadOrFallback(&s_runtime.rocks[i],
+                          "spps-voyage/models/rock.glb",
+                          (Vector3){rx, 0.0f, rz},
+                          (BoundingBox){(Vector3){-2.0f, 0.0f, -2.0f}, (Vector3){2.0f, 4.0f, 2.0f}});
     }
 
     for (int i = 0; i < MAX_GOLD; i++) {
         float gx = (float)GetRandomValue(-280, -40);
         float gz = (float)GetRandomValue((int)BOAT_Z_MIN, (int)BOAT_Z_MAX);
-        s_runtime.gold[i] = CreateGameObject("spps-voyage/models/gold_coin.glb", (Vector3){gx, 1.5f, gz});
+        TryLoadOrFallback(&s_runtime.gold[i],
+                          "spps-voyage/models/gold_coin.glb",
+                          (Vector3){gx, 1.5f, gz},
+                          (BoundingBox){(Vector3){-0.9f, -0.2f, -0.9f}, (Vector3){0.9f, 0.2f, 0.9f}});
     }
 
     InitCrewModel();
@@ -102,12 +158,16 @@ static bool EnsureVoyageAssetsLoaded(char *resultMessage, size_t resultMessageSi
     InitInterior(&s_runtime.interior);
     ResetInteriorState(&s_runtime.interior);
 
-    s_runtime.musicDeck = LoadMusicStream("spps-voyage/audio/ocean_sounds.wav");
-    s_runtime.musicInterior = LoadMusicStream("spps-voyage/audio/interior.wav");
-    s_runtime.crash = LoadSound("spps-voyage/audio/crash.wav");
-    s_runtime.goldSound = LoadSound("spps-voyage/audio/gold.wav");
+    if (VoyageAudioSupported()) {
+        if (FileExists("spps-voyage/audio/ocean_sounds.wav")) s_runtime.musicDeck = LoadMusicStream("spps-voyage/audio/ocean_sounds.wav");
+        if (FileExists("spps-voyage/audio/interior.wav")) s_runtime.musicInterior = LoadMusicStream("spps-voyage/audio/interior.wav");
+        if (FileExists("spps-voyage/audio/crash.wav")) s_runtime.crash = LoadSound("spps-voyage/audio/crash.wav");
+        if (FileExists("spps-voyage/audio/gold.wav")) s_runtime.goldSound = LoadSound("spps-voyage/audio/gold.wav");
+    }
 
     s_runtime.assetsLoaded = true;
+    (void)resultMessage;
+    (void)resultMessageSize;
     return true;
 }
 
@@ -120,22 +180,22 @@ static void ResetVoyageRun(void) {
     s_runtime.camera.projection = CAMERA_PERSPECTIVE;
 
     s_runtime.boat.position = (Vector3){0.0f, 0.0f, 0.0f};
-    s_runtime.boat.active = IsModelValid(s_runtime.boat.model);
+    s_runtime.boat.active = true;
     s_runtime.island.position = (Vector3){FINISH_LINE_X - ISLAND_OFFSET, 0.0f, 0.0f};
-    s_runtime.island.active = IsModelValid(s_runtime.island.model);
+    s_runtime.island.active = true;
 
     for (int i = 0; i < MAX_ROCKS; i++) {
         float rx = (float)GetRandomValue(-300, -20);
         float rz = (float)GetRandomValue((int)BOAT_Z_MIN, (int)BOAT_Z_MAX);
         s_runtime.rocks[i].position = (Vector3){rx, 0.0f, rz};
-        s_runtime.rocks[i].active = IsModelValid(s_runtime.rocks[i].model);
+        s_runtime.rocks[i].active = true;
     }
 
     for (int i = 0; i < MAX_GOLD; i++) {
         float gx = (float)GetRandomValue(-280, -40);
         float gz = (float)GetRandomValue((int)BOAT_Z_MIN, (int)BOAT_Z_MAX);
         s_runtime.gold[i].position = (Vector3){gx, 1.5f, gz};
-        s_runtime.gold[i].active = IsModelValid(s_runtime.gold[i].model);
+        s_runtime.gold[i].active = true;
     }
 
     InitCrew(s_runtime.crew, MAX_CREW);
@@ -253,22 +313,36 @@ static void DrawVoyageWorld(void) {
         ClearBackground((Color){30, 90, 160, 255});
         BeginMode3D(s_runtime.camera);
             DrawOcean(s_runtime.boat.position.x, s_runtime.waveTime);
-            DrawModelEx(s_runtime.boat.model, s_runtime.boat.position,
-                        (Vector3){0.0f, 1.0f, 0.0f}, 90.0f,
-                        (Vector3){1.0f, 1.0f, 1.0f}, WHITE);
+            if (IsModelValid(s_runtime.boat.model)) {
+                DrawModelEx(s_runtime.boat.model, s_runtime.boat.position,
+                            (Vector3){0.0f, 1.0f, 0.0f}, 90.0f,
+                            (Vector3){1.0f, 1.0f, 1.0f}, WHITE);
+            } else {
+                DrawFallbackBoat(s_runtime.boat.position);
+            }
             for (int i = 0; i < MAX_ROCKS; i++) {
-                if (s_runtime.rocks[i].active) DrawModel(s_runtime.rocks[i].model, s_runtime.rocks[i].position, 1.0f, WHITE);
+                if (!s_runtime.rocks[i].active) continue;
+                if (IsModelValid(s_runtime.rocks[i].model)) DrawModel(s_runtime.rocks[i].model, s_runtime.rocks[i].position, 1.0f, WHITE);
+                else DrawFallbackRock(s_runtime.rocks[i].position);
             }
             for (int i = 0; i < MAX_GOLD; i++) {
                 if (s_runtime.gold[i].active) {
-                    DrawModelEx(s_runtime.gold[i].model, s_runtime.gold[i].position,
-                                (Vector3){0.0f, 1.0f, 0.0f}, s_runtime.waveTime * 90.0f,
-                                (Vector3){3.0f, 3.0f, 3.0f}, GOLD);
+                    if (IsModelValid(s_runtime.gold[i].model)) {
+                        DrawModelEx(s_runtime.gold[i].model, s_runtime.gold[i].position,
+                                    (Vector3){0.0f, 1.0f, 0.0f}, s_runtime.waveTime * 90.0f,
+                                    (Vector3){3.0f, 3.0f, 3.0f}, GOLD);
+                    } else {
+                        DrawFallbackGold(s_runtime.gold[i].position, s_runtime.waveTime * 6.0f);
+                    }
                 }
             }
             if (s_runtime.island.active) {
-                DrawModelEx(s_runtime.island.model, s_runtime.island.position,
-                            (Vector3){0.0f, 1.0f, 0.0f}, 0.0f, s_runtime.islandScale, WHITE);
+                if (IsModelValid(s_runtime.island.model)) {
+                    DrawModelEx(s_runtime.island.model, s_runtime.island.position,
+                                (Vector3){0.0f, 1.0f, 0.0f}, 0.0f, s_runtime.islandScale, WHITE);
+                } else {
+                    DrawFallbackIsland(s_runtime.island.position, s_runtime.islandScale);
+                }
             }
         EndMode3D();
     EndTextureMode();
@@ -285,22 +359,36 @@ static void DrawVoyageWorld(void) {
 
     BeginMode3D(s_runtime.camera);
         DrawOcean(s_runtime.boat.position.x, s_runtime.waveTime);
-        DrawModelEx(s_runtime.boat.model, s_runtime.boat.position,
-                    (Vector3){0.0f, 1.0f, 0.0f}, 90.0f,
-                    (Vector3){1.0f, 1.0f, 1.0f}, WHITE);
+        if (IsModelValid(s_runtime.boat.model)) {
+            DrawModelEx(s_runtime.boat.model, s_runtime.boat.position,
+                        (Vector3){0.0f, 1.0f, 0.0f}, 90.0f,
+                        (Vector3){1.0f, 1.0f, 1.0f}, WHITE);
+        } else {
+            DrawFallbackBoat(s_runtime.boat.position);
+        }
         for (int i = 0; i < MAX_ROCKS; i++) {
-            if (s_runtime.rocks[i].active) DrawModel(s_runtime.rocks[i].model, s_runtime.rocks[i].position, 1.0f, WHITE);
+            if (!s_runtime.rocks[i].active) continue;
+            if (IsModelValid(s_runtime.rocks[i].model)) DrawModel(s_runtime.rocks[i].model, s_runtime.rocks[i].position, 1.0f, WHITE);
+            else DrawFallbackRock(s_runtime.rocks[i].position);
         }
         for (int i = 0; i < MAX_GOLD; i++) {
             if (s_runtime.gold[i].active) {
-                DrawModelEx(s_runtime.gold[i].model, s_runtime.gold[i].position,
-                            (Vector3){0.0f, 1.0f, 0.0f}, s_runtime.waveTime * 90.0f,
-                            (Vector3){3.0f, 3.0f, 3.0f}, GOLD);
+                if (IsModelValid(s_runtime.gold[i].model)) {
+                    DrawModelEx(s_runtime.gold[i].model, s_runtime.gold[i].position,
+                                (Vector3){0.0f, 1.0f, 0.0f}, s_runtime.waveTime * 90.0f,
+                                (Vector3){3.0f, 3.0f, 3.0f}, GOLD);
+                } else {
+                    DrawFallbackGold(s_runtime.gold[i].position, s_runtime.waveTime * 6.0f);
+                }
             }
         }
         if (s_runtime.island.active) {
-            DrawModelEx(s_runtime.island.model, s_runtime.island.position,
-                        (Vector3){0.0f, 1.0f, 0.0f}, 0.0f, s_runtime.islandScale, WHITE);
+            if (IsModelValid(s_runtime.island.model)) {
+                DrawModelEx(s_runtime.island.model, s_runtime.island.position,
+                            (Vector3){0.0f, 1.0f, 0.0f}, 0.0f, s_runtime.islandScale, WHITE);
+            } else {
+                DrawFallbackIsland(s_runtime.island.position, s_runtime.islandScale);
+            }
         }
     EndMode3D();
 

@@ -1,4 +1,5 @@
 #include "combat.h"
+#include "platform_input.h"
 #include "scripture.h"
 #include <stdio.h>
 #include <stdlib.h>

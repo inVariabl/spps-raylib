@@ -1,4 +1,5 @@
 #include "npc.h"
+#include "platform_input.h"
 
 #include "player.h"
 #include "world.h"
