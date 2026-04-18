@@ -1,4 +1,5 @@
 #include "crew.h"
+#include "common.h"
 
 #define PATROL_MIN  (-INTERIOR_ROOM_D * 0.45f)
 #define PATROL_MAX  ( INTERIOR_ROOM_D * 0.45f)
@@ -8,9 +9,17 @@
 // ----------------------------------------------------------------
 static Model s_model;
 static bool  s_modelLoaded = false;
+static Texture2D s_sprite;
+static bool      s_spriteLoaded = false;
 
 void InitCrewModel(void)
 {
+    if (FileExists("lite-assets/sailor.png"))
+    {
+        s_sprite = LoadTexture("lite-assets/sailor.png");
+        s_spriteLoaded = IsTextureValid(s_sprite);
+    }
+
     if (!FileExists("spps-voyage/models/roman_character.glb")) return;
 
     s_model = LoadModel("spps-voyage/models/roman_character.glb");
@@ -36,6 +45,11 @@ void UnloadCrewModel(void)
     {
         UnloadModel(s_model);
         s_modelLoaded = false;
+    }
+    if (s_spriteLoaded)
+    {
+        UnloadTexture(s_sprite);
+        s_spriteLoaded = false;
     }
 }
 
@@ -121,7 +135,7 @@ static void DrawMoraleBar3D(Vector3 basePos, float morale)
 // ----------------------------------------------------------------
 // Draw crew — static roman_character.glb, no animation
 // ----------------------------------------------------------------
-void DrawCrew(const CrewMember crew[], int count)
+void DrawCrew(const CrewMember crew[], int count, Camera3D camera)
 {
     for (int i = 0; i < count; i++)
     {
@@ -138,6 +152,15 @@ void DrawCrew(const CrewMember crew[], int count)
                         facingAngle,
                         (Vector3){ 1.5f, 2.2f, 1.5f },  // tweak scale if model is too big/small
                         tint);
+        }
+        else if (s_spriteLoaded)
+        {
+            Color tint = c->boostedRecently ? WHITE : (Color){220, 220, 220, 255};
+            DrawCharacterBillboard(camera,
+                                   s_sprite,
+                                   (Vector3){c->position.x, 0.05f, c->position.z},
+                                   2.86f,
+                                   tint);
         }
         else
         {

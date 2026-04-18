@@ -185,11 +185,11 @@ void UpdateNPC(NPC *npc, World *world, struct Player *player, int npcIndex) {
 void DrawNPC(const NPC *npc, Camera3D camera) {
     if (!npc->active) return;
 
-    DrawBillboard(
+    DrawCharacterBillboard(
         camera,
         spriteDatabase[npc->sprite],
-        (Vector3){npc->lerpPosition.x, 0.75f, npc->lerpPosition.z},
-        1.5f,
+        (Vector3){npc->lerpPosition.x, 0.0f, npc->lerpPosition.z},
+        1.65f,
         WHITE
     );
 }

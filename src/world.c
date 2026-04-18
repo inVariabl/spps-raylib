@@ -436,14 +436,14 @@ void LoadWorld(World *world, WorldId worldId) {
             world->state.maxX = 140;
             world->state.minZ = -40;
             world->state.maxZ = 120;
-            InitNPC(&world->state.npcs[0], "Pharisee", (Vector3Int){2, 0, -3}, SPRITE_SADDUCEE, true, 6);
-            InitNPC(&world->state.npcs[1], "Merchant", (Vector3Int){12, 0, 14}, SPRITE_PAUL, false, 0);
-            InitNPC(&world->state.npcs[2], "Guard", (Vector3Int){5, 0, 1}, SPRITE_PAUL, false, 0);
-            InitNPC(&world->state.npcs[3], "Pilgrim", (Vector3Int){6, 0, 18}, SPRITE_PAUL, true, 4);
-            InitNPC(&world->state.npcs[4], "Elder", (Vector3Int){-8, 0, 16}, SPRITE_ANANIAS, false, 0);
-            InitNPC(&world->state.npcs[5], "Pharisee", (Vector3Int){9, 0, 11}, SPRITE_SADDUCEE, true, 4);
-            InitNPC(&world->state.npcs[6], "Pharisee", (Vector3Int){2, 0, 15}, SPRITE_SADDUCEE, true, 5);
-            InitNPC(&world->state.npcs[7], "Pharisee", (Vector3Int){-11, 0, 13}, SPRITE_SADDUCEE, true, 4);
+            InitNPC(&world->state.npcs[0], "Pharisee", (Vector3Int){2, 0, -3}, SPRITE_PHARISEE, true, 6);
+            InitNPC(&world->state.npcs[1], "Merchant", (Vector3Int){12, 0, 14}, SPRITE_ROMAN_CITIZEN, false, 0);
+            InitNPC(&world->state.npcs[2], "Guard", (Vector3Int){5, 0, 1}, SPRITE_ROMAN, false, 0);
+            InitNPC(&world->state.npcs[3], "Pilgrim", (Vector3Int){6, 0, 18}, SPRITE_ROMAN_CITIZEN, true, 4);
+            InitNPC(&world->state.npcs[4], "Elder", (Vector3Int){-8, 0, 16}, SPRITE_ELDER, false, 0);
+            InitNPC(&world->state.npcs[5], "Pharisee", (Vector3Int){9, 0, 11}, SPRITE_PHARISEE, true, 4);
+            InitNPC(&world->state.npcs[6], "Pharisee", (Vector3Int){2, 0, 15}, SPRITE_PHARISEE, true, 5);
+            InitNPC(&world->state.npcs[7], "Pharisee", (Vector3Int){-11, 0, 13}, SPRITE_PHARISEE, true, 4);
             world->state.items[0] = (GroundItem){(Vector3Int){-3, 0, 4}, 5, true};
             world->state.decos[0] = (Decoration){(Vector3Int){0, 0, -10}, DECO_TEMPLE};
             world->state.decos[1] = (Decoration){(Vector3Int){-15, 0, -5}, DECO_SYNAGOGUE};
@@ -487,8 +487,8 @@ void LoadWorld(World *world, WorldId worldId) {
             world->state.decos[22] = (Decoration){(Vector3Int){109, 0, 418}, DECO_FIRE_PIT_UNLIT};
             // Snake hidden initially (will appear when fire is lit)
             world->state.decos[23] = (Decoration){(Vector3Int){109, 0, 418}, DECO_NONE};
-            InitNPC(&world->state.npcs[0], "Islander", (Vector3Int){112, 0, 420}, SPRITE_PAUL, true, 4);
-            InitNPC(&world->state.npcs[1], "Islander", (Vector3Int){106, 0, 415}, SPRITE_PAUL, true, 4);
+            InitNPC(&world->state.npcs[0], "Islander", (Vector3Int){112, 0, 420}, SPRITE_MALTA, true, 4);
+            InitNPC(&world->state.npcs[1], "Islander", (Vector3Int){106, 0, 415}, SPRITE_MALTA, true, 4);
             world->state.ports[0] = (Port){(Vector3Int){109, 0, 430}, "Malta", 0, true};
             world->state.portCount = 1;
             world->state.snakePos = (Vector3Int){109, 0, 418};
@@ -513,10 +513,11 @@ void LoadWorld(World *world, WorldId worldId) {
             world->state.decos[8] = (Decoration){(Vector3Int){20, 0, 670}, DECO_COLUMN};
             world->state.decos[9] = (Decoration){(Vector3Int){30, 0, 690}, DECO_TEMPLE};
             world->state.decos[10] = (Decoration){(Vector3Int){0, 0, 720}, DECO_HOUSE};
-            InitNPC(&world->state.npcs[0], "Roman Believer 1", (Vector3Int){82, 0, 602}, SPRITE_PAUL, false, 0);
-            InitNPC(&world->state.npcs[1], "Roman Believer 2", (Vector3Int){34, 0, 640}, SPRITE_ANANIAS, false, 0);
-            InitNPC(&world->state.npcs[2], "Roman Believer 3", (Vector3Int){18, 0, 680}, SPRITE_PAUL, false, 0);
-            InitNPC(&world->state.npcs[3], "Centurion", (Vector3Int){4, 0, 708}, SPRITE_SADDUCEE, false, 0);
+            InitNPC(&world->state.npcs[0], "Roman Believer 1", (Vector3Int){82, 0, 602}, SPRITE_ROMAN_CITIZEN, false, 0);
+            InitNPC(&world->state.npcs[1], "Roman Believer 2", (Vector3Int){34, 0, 640}, SPRITE_ELDER, false, 0);
+            InitNPC(&world->state.npcs[2], "Roman Believer 3", (Vector3Int){18, 0, 680}, SPRITE_ROMAN_CITIZEN, false, 0);
+            InitNPC(&world->state.npcs[3], "Centurion", (Vector3Int){4, 0, 708}, SPRITE_ROMAN, false, 0);
+            InitNPC(&world->state.npcs[4], "House Guard", (Vector3Int){4, 0, 720}, SPRITE_ROMAN, false, 0);
             world->state.ports[0] = (Port){(Vector3Int){109, 0, 560}, "Puteoli", 0, true};
             world->state.portCount = 1;
             world->state.houseArrestPos = (Vector3Int){0, 0, 720};
@@ -598,6 +599,15 @@ void UpdateWorld(World *world, Player *player) {
                 player->questStates[4] = QUEST_COMPLETED;
                 player->activeQuestId = 0;
             }
+        }
+
+        if (allBelieversMet &&
+            abs(player->position.x - world->state.houseArrestPos.x) <= 4 &&
+            abs(player->position.z - world->state.houseArrestPos.z) <= 4) {
+            player->romeCenturionMet = true;
+            player->questStates[4] = QUEST_COMPLETED;
+            player->activeQuestId = 0;
+            player->gameComplete = true;
         }
     }
 
@@ -876,7 +886,11 @@ void DrawWorld(World *world, Camera3D camera, bool drawShadows) {
         if (!projectile->active) continue;
         if (Vector3Distance(camera.target, projectile->position) > RENDER_DISTANCE + 10.0f) continue;
 
-        DrawSphere(projectile->position, 0.22f, DARKGRAY);
+        if (IsTextureValid(rockTexture)) {
+            DrawCharacterBillboard(camera, rockTexture, projectile->position, 0.5f, WHITE);
+        } else {
+            DrawSphere(projectile->position, 0.22f, DARKGRAY);
+        }
         DrawCircle3D((Vector3){projectile->position.x, 0.02f, projectile->position.z},
                      0.18f,
                      (Vector3){1.0f, 0.0f, 0.0f},

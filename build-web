@@ -4,6 +4,19 @@ set -eu
 
 BUILD_DIR="${1:-out-web-lite}"
 MODE="${2:-lite}"
+SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
+
+if ! command -v emcmake >/dev/null 2>&1; then
+    if [ -f "$SCRIPT_DIR/emsdk/emsdk_env.sh" ]; then
+        # shellcheck disable=SC1091
+        . "$SCRIPT_DIR/emsdk/emsdk_env.sh" >/dev/null 2>&1
+    fi
+fi
+
+if ! command -v emcmake >/dev/null 2>&1; then
+    printf '%s\n' "emcmake not found. Install/activate Emscripten or place emsdk/ in the repo root." >&2
+    exit 127
+fi
 
 if [ "$BUILD_DIR" = "lite" ] || [ "$BUILD_DIR" = "full" ]; then
     MODE="$BUILD_DIR"
@@ -19,7 +32,7 @@ if [ "$MODE" = "lite" ]; then
     LITE_FLAG=ON
 fi
 
-rm -f "$BUILD_DIR/main.data" "$BUILD_DIR/main.data.js"
+rm -f "$BUILD_DIR/main.data" "$BUILD_DIR/main.data.js" "$BUILD_DIR/main.html" "$BUILD_DIR/main.js" "$BUILD_DIR/main.wasm"
 
 emcmake cmake -S . -B "$BUILD_DIR" -DCMAKE_BUILD_TYPE=Release -DSPPS_WEB_LITE="$LITE_FLAG"
 cmake --build "$BUILD_DIR"

@@ -1,6 +1,7 @@
 #include "ship_minigame.h"
 
 #include "collision.h"
+#include "common.h"
 #include "crew.h"
 #include "game.h"
 #include "interior.h"
@@ -38,6 +39,8 @@ typedef struct {
     Sound crash;
     Sound goldSound;
     bool interiorMusicPlaying;
+    Texture2D rockSprite;
+    bool rockSpriteLoaded;
 } VoyageRuntime;
 
 static VoyageRuntime s_runtime = {0};
@@ -82,7 +85,12 @@ static void DrawFallbackIsland(Vector3 pos, Vector3 scale) {
     DrawSphere((Vector3){pos.x - 16.0f, pos.y + 8.0f, pos.z - 10.0f}, 13.0f * scale.x * 0.18f, LIME);
 }
 
-static void DrawFallbackRock(Vector3 pos) {
+static void DrawFallbackRock(Camera3D camera, Vector3 pos) {
+    if (s_runtime.rockSpriteLoaded) {
+        DrawCharacterBillboard(camera, s_runtime.rockSprite, pos, 4.2f, WHITE);
+        return;
+    }
+
     DrawSphere((Vector3){pos.x, pos.y + 2.1f, pos.z}, 2.1f, GRAY);
 }
 
@@ -158,6 +166,11 @@ static bool EnsureVoyageAssetsLoaded(char *resultMessage, size_t resultMessageSi
     InitInterior(&s_runtime.interior);
     ResetInteriorState(&s_runtime.interior);
 
+    if (FileExists("lite-assets/rock.png")) {
+        s_runtime.rockSprite = LoadTexture("lite-assets/rock.png");
+        s_runtime.rockSpriteLoaded = IsTextureValid(s_runtime.rockSprite);
+    }
+
     if (VoyageAudioSupported()) {
         if (FileExists("spps-voyage/audio/ocean_sounds.wav")) s_runtime.musicDeck = LoadMusicStream("spps-voyage/audio/ocean_sounds.wav");
         if (FileExists("spps-voyage/audio/interior.wav")) s_runtime.musicInterior = LoadMusicStream("spps-voyage/audio/interior.wav");
@@ -216,6 +229,8 @@ static void ResetVoyageRun(void) {
 
 static void UpdateVoyagePlay(void) {
     float dt = GetFrameTime();
+    bool shiftDown = IsKeyDown(KEY_LEFT_SHIFT) || IsKeyDown(KEY_RIGHT_SHIFT);
+    float travelSpeed = 30.0f;
     s_runtime.waveTime += dt;
 
     bool wasFullscreen = s_runtime.interior.fullscreen;
@@ -243,12 +258,12 @@ static void UpdateVoyagePlay(void) {
 
     UpdateCrew(s_runtime.crew, MAX_CREW, dt);
 
-    if (IsKeyDown(KEY_LEFT_SHIFT) || IsKeyDown(KEY_RIGHT_SHIFT)) {
-        s_runtime.boatHealth += (int)roundf(18.0f * dt);
+    if (shiftDown) {
+        s_runtime.boatHealth += (int)roundf(90.0f * dt);
         if (s_runtime.boatHealth > 100) s_runtime.boatHealth = 100;
 
         for (int i = 0; i < MAX_CREW; i++) {
-            s_runtime.crew[i].morale += 30.0f * dt;
+            s_runtime.crew[i].morale += 60.0f * dt;
             if (s_runtime.crew[i].morale > CREW_MORALE_MAX) {
                 s_runtime.crew[i].morale = CREW_MORALE_MAX;
             }
@@ -260,7 +275,7 @@ static void UpdateVoyagePlay(void) {
     float overallMorale = GetOverallMorale(s_runtime.crew, MAX_CREW);
     if (overallMorale <= MORALE_GAMEOVER_VAL) s_runtime.moraleGameOver = true;
 
-    s_runtime.boat.position.x -= 20.0f * dt;
+    s_runtime.boat.position.x -= travelSpeed * dt;
     if (s_runtime.boat.position.x < FINISH_LINE_X) s_runtime.boat.position.x = FINISH_LINE_X;
 
     if (IsKeyDown(KEY_LEFT)) s_runtime.boat.position.z += 30.0f * dt;
@@ -323,7 +338,7 @@ static void DrawVoyageWorld(void) {
             for (int i = 0; i < MAX_ROCKS; i++) {
                 if (!s_runtime.rocks[i].active) continue;
                 if (IsModelValid(s_runtime.rocks[i].model)) DrawModel(s_runtime.rocks[i].model, s_runtime.rocks[i].position, 1.0f, WHITE);
-                else DrawFallbackRock(s_runtime.rocks[i].position);
+                else DrawFallbackRock(s_runtime.camera, s_runtime.rocks[i].position);
             }
             for (int i = 0; i < MAX_GOLD; i++) {
                 if (s_runtime.gold[i].active) {
@@ -369,7 +384,7 @@ static void DrawVoyageWorld(void) {
         for (int i = 0; i < MAX_ROCKS; i++) {
             if (!s_runtime.rocks[i].active) continue;
             if (IsModelValid(s_runtime.rocks[i].model)) DrawModel(s_runtime.rocks[i].model, s_runtime.rocks[i].position, 1.0f, WHITE);
-            else DrawFallbackRock(s_runtime.rocks[i].position);
+            else DrawFallbackRock(s_runtime.camera, s_runtime.rocks[i].position);
         }
         for (int i = 0; i < MAX_GOLD; i++) {
             if (s_runtime.gold[i].active) {
@@ -551,6 +566,7 @@ void UnloadShipMinigame(void) {
     UnloadGameObject(&s_runtime.island);
     for (int i = 0; i < MAX_ROCKS; i++) UnloadGameObject(&s_runtime.rocks[i]);
     for (int i = 0; i < MAX_GOLD; i++) UnloadGameObject(&s_runtime.gold[i]);
+    if (s_runtime.rockSpriteLoaded) UnloadTexture(s_runtime.rockSprite);
 
     if (IsMusicValid(s_runtime.musicDeck)) UnloadMusicStream(s_runtime.musicDeck);
     if (IsMusicValid(s_runtime.musicInterior)) UnloadMusicStream(s_runtime.musicInterior);

@@ -184,6 +184,27 @@ static int DrawWrappedTextBlock(const char *text, int x, int y, int fontSize, in
     return lineCount;
 }
 
+static void DrawWantedStarIcon(Vector2 center, float radius, Color color) {
+    float triHeight = radius;
+    float halfWidth = radius * 0.8660254f;
+
+    Vector2 upA = {center.x, center.y - triHeight};
+    Vector2 upB = {center.x - halfWidth, center.y + triHeight * 0.5f};
+    Vector2 upC = {center.x + halfWidth, center.y + triHeight * 0.5f};
+
+    Vector2 downA = {center.x, center.y + triHeight};
+    Vector2 downB = {center.x - halfWidth, center.y - triHeight * 0.5f};
+    Vector2 downC = {center.x + halfWidth, center.y - triHeight * 0.5f};
+
+    DrawLineEx(upA, upB, 2.0f, color);
+    DrawLineEx(upB, upC, 2.0f, color);
+    DrawLineEx(upC, upA, 2.0f, color);
+
+    DrawLineEx(downA, downB, 2.0f, color);
+    DrawLineEx(downB, downC, 2.0f, color);
+    DrawLineEx(downC, downA, 2.0f, color);
+}
+
 static void GetQuestLogText(const Player *player, const World *world,
                             const char **title, const char **line1, const char **line2) {
     *title = "Current Objective";
@@ -338,30 +359,6 @@ void DrawInventory(Player *player) {
         }
     }
 
-    // Craft Button
-    Rectangle craftBtn = {(float)invStartX + 10, (float)invStartY + 290, 180, 30};
-    bool hovered = CheckCollisionPointRec(GetMousePosition(), craftBtn);
-    DrawRectangleRec(craftBtn, hovered ? GOLD : BLACK);
-    DrawRectangleLinesEx(craftBtn, 2, GOLD);
-    DrawText("CRAFT TENT", invStartX + 45, invStartY + 297, 15, hovered ? BLACK : GOLD);
-
-    if (hovered && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
-        TryCraftTent(player);
-    }
-}
-
-void DrawSkills(Player *player) {
-    // Basic skills UI top-left
-    DrawRectangle(10, 100, 150, 80, Fade(DARKGRAY, 0.7f));
-    DrawText("SKILLS", 15, 105, 15, WHITE);
-    
-    char buf[64];
-    sprintf(buf, "Oratory: %d", player->skills[SKILL_ORATORY].level);
-    DrawText(buf, 15, 125, 12, GOLD);
-    sprintf(buf, "Tentmaking: %d", player->skills[SKILL_TENTMAKING].level);
-    DrawText(buf, 15, 140, 12, GOLD);
-    sprintf(buf, "Endurance: %d", player->skills[SKILL_ENDURANCE].level);
-    DrawText(buf, 15, 155, 12, GOLD);
 }
 
 #include "world.h"
@@ -385,7 +382,7 @@ void DrawHUD(Player *player, World *world, bool isFirstPerson) {
     DrawRectangle(starsX - 10, starsY - 4, 150, 28, Fade(BLACK, 0.55f));
     for (int i = 0; i < 5; i++) {
         Color starColor = (i < player->wantedStars) ? GOLD : Fade(LIGHTGRAY, 0.4f);
-        DrawText("*", starsX + i * 24, starsY, 24, starColor);
+        DrawWantedStarIcon((Vector2){(float)(starsX + 10 + i * 24), (float)(starsY + 10)}, 8.0f, starColor);
     }
 
     // Location Display
@@ -435,32 +432,6 @@ void DrawHUD(Player *player, World *world, bool isFirstPerson) {
             }
         }
 
-        // Overview Map (Top-Right)
-        int mapW = 150;
-        int mapH = 150;
-        int mapX = GetScreenWidth() - mapW - 10;
-        int mapY = 10;
-        DrawRectangle(mapX, mapY, mapW, mapH, Fade(BLACK, 0.8f));
-        DrawRectangleLines(mapX, mapY, mapW, mapH, GOLD);
-
-        // Draw cities on map
-        for (int i = 0; i < sizeof(worldMap)/sizeof(City); i++) {
-            if (worldMap[i].coords.x < world->state.minX || worldMap[i].coords.x > world->state.maxX ||
-                worldMap[i].coords.z < world->state.minZ || worldMap[i].coords.z > world->state.maxZ) {
-                continue;
-            }
-            int cityX = mapX + mapW/2 + worldMap[i].coords.x / 5;
-            int cityZ = mapY + mapH/2 + worldMap[i].coords.z / 5;
-            if (cityX > mapX && cityX < mapX + mapW && cityZ > mapY && cityZ < mapY + mapH) {
-                DrawCircle(cityX, cityZ, 2, RED);
-            }
-        }
-        // Draw player
-        int px = mapX + mapW/2 + (int)player->lerpPosition.x / 5;
-        int pz = mapY + mapH/2 + (int)player->lerpPosition.z / 5;
-        if (px > mapX && px < mapX + mapW && pz > mapY && pz < mapY + mapH) {
-            DrawCircle(px, pz, 3, GREEN);
-        }
     }
 
     // Objective + Port travel prompt
@@ -572,8 +543,8 @@ void DrawHUD(Player *player, World *world, bool isFirstPerson) {
         DrawRectangle(panelX, panelY, panelW, panelH, Fade(BLACK, 0.72f));
         DrawRectangleLines(panelX, panelY, panelW, panelH, Fade(SKYBLUE, 0.8f));
         DrawText("WEB CONTROLS", panelX + 12, panelY + 8, 16, GOLD);
-        DrawText("Click the canvas first. F1/F2/F3/F5 also work as 1/2/3/5 in the browser.", panelX + 12, panelY + 28, 15, RAYWHITE);
-        DrawText("Shift still boosts movement and voyage recovery.", panelX + 12, panelY + 44, 15, Fade(RAYWHITE, 0.88f));
+        DrawText("Click the canvas first. Use F1 and F3 directly in the browser.", panelX + 12, panelY + 28, 15, RAYWHITE);
+        DrawText("Arrow keys steer the ship. Tab switches the voyage interior.", panelX + 12, panelY + 44, 15, Fade(RAYWHITE, 0.88f));
     }
 }
 

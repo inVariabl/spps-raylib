@@ -94,13 +94,17 @@ typedef enum {
 
 typedef enum {
     SPRITE_PAUL,
-    SPRITE_SADDUCEE,
-    SPRITE_ANANIAS,
+    SPRITE_PHARISEE,
+    SPRITE_ELDER,
+    SPRITE_ROMAN,
+    SPRITE_ROMAN_CITIZEN,
+    SPRITE_MALTA,
     SPRITE_LETTER,
     SPRITE_COUNT
 } SpriteType;
 
 extern Texture2D spriteDatabase[SPRITE_COUNT];
+extern Texture2D rockTexture;
 extern Model snakeModel;
 extern bool snakeModelLoaded;
 extern Vector3 snakeModelScale;
@@ -141,6 +145,16 @@ extern Model romanSoldierModel;
 extern bool romanSoldierModelLoaded;
 extern Vector3 romanSoldierModelScale;
 extern Vector3 romanSoldierModelOffset;
+
+static inline void DrawCharacterBillboard(Camera3D camera, Texture2D texture, Vector3 feetPos, float height, Color tint) {
+    if (!IsTextureValid(texture) || texture.width <= 0 || texture.height <= 0 || height <= 0.0f) return;
+
+    float aspect = (float)texture.width / (float)texture.height;
+    Rectangle source = {0.0f, 0.0f, (float)texture.width, (float)texture.height};
+    Vector2 size = {height * aspect, height};
+    Vector3 center = {feetPos.x, feetPos.y + height * 0.5f, feetPos.z};
+    DrawBillboardRec(camera, texture, source, center, size, tint);
+}
 
 typedef struct {
     Vector3 lightDir;

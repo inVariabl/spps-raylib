@@ -8,6 +8,7 @@
 
 static bool s_webDown[512] = {0};
 static bool s_webPressed[512] = {0};
+static bool s_webTravelRequested = false;
 
 EMSCRIPTEN_KEEPALIVE void SPPS_WebSetKeyState(int key, int isDown) {
     if (key < 0 || key >= (int)(sizeof(s_webDown) / sizeof(s_webDown[0]))) return;
@@ -27,6 +28,11 @@ EMSCRIPTEN_KEEPALIVE void SPPS_WebResetInputs(void) {
         s_webDown[i] = false;
         s_webPressed[i] = false;
     }
+    s_webTravelRequested = false;
+}
+
+EMSCRIPTEN_KEEPALIVE void SPPS_WebRequestTravel(void) {
+    s_webTravelRequested = true;
 }
 #endif
 
@@ -49,5 +55,19 @@ void SppsInputFrameEnd(void) {
     for (int i = 0; i < (int)(sizeof(s_webPressed) / sizeof(s_webPressed[0])); i++) {
         s_webPressed[i] = false;
     }
+#endif
+}
+
+bool SppsConsumeWebTravelRequest(void) {
+#if SPPS_PLATFORM_WEB
+    return s_webTravelRequested;
+#else
+    return false;
+#endif
+}
+
+void SppsClearWebTravelRequest(void) {
+#if SPPS_PLATFORM_WEB
+    s_webTravelRequested = false;
 #endif
 }

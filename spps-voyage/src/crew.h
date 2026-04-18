@@ -20,6 +20,6 @@ void  UnloadCrewModel(void);
 void  InitCrew(CrewMember crew[], int count);
 void  UpdateCrew(CrewMember crew[], int count, float dt);
 float GetOverallMorale(const CrewMember crew[], int count);
-void  DrawCrew(const CrewMember crew[], int count);
+void  DrawCrew(const CrewMember crew[], int count, Camera3D camera);
 
 #endif // CREW_H

@@ -6,11 +6,14 @@
 bool SppsIsKeyDown(int key);
 bool SppsIsKeyPressed(int key);
 void SppsInputFrameEnd(void);
+bool SppsConsumeWebTravelRequest(void);
+void SppsClearWebTravelRequest(void);
 
 #if SPPS_PLATFORM_WEB
 void SPPS_WebSetKeyState(int key, int isDown);
 void SPPS_WebPulseKey(int key);
 void SPPS_WebResetInputs(void);
+void SPPS_WebRequestTravel(void);
 #endif
 
 #define IsKeyDown SppsIsKeyDown

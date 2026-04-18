@@ -46,7 +46,7 @@ void InitPlayer(Player *player) {
     player->guardDialogueLastResult = -1;
     player->guardClearedForShip = false;
 
-    player->showInventory = true;
+    player->showInventory = false;
     player->showMap = true;
     player->gameComplete = false;
     for (int i = 0; i < 3; i++) player->romeBelieversMet[i] = false;
@@ -169,8 +169,11 @@ void DrawPlayer(Player *player, Camera3D camera, bool drawShadow) {
                     paulModelScale,
                     WHITE);
     } else {
-        Vector3 pos = {player->lerpPosition.x, 0.75f, player->lerpPosition.z};
-        DrawBillboard(camera, spriteDatabase[SPRITE_PAUL], pos, 1.5f, WHITE);
+        DrawCharacterBillboard(camera,
+                               spriteDatabase[SPRITE_PAUL],
+                               (Vector3){player->lerpPosition.x, 0.0f, player->lerpPosition.z},
+                               1.65f,
+                               WHITE);
     }
 }
 

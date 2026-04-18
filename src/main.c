@@ -21,6 +21,7 @@
 #define SHADOW_MAP_SIZE 1024
 
 Texture2D spriteDatabase[SPRITE_COUNT];
+Texture2D rockTexture = {0};
 Model snakeModel = {0};
 bool snakeModelLoaded = false;
 Vector3 snakeModelScale = {1.0f, 1.0f, 1.0f};
@@ -82,6 +83,8 @@ typedef struct {
     int lightVPLoc;
     ShaderSettings settings;
     float snakeEventTimer;
+    bool travelKeyWasDown;
+    float travelTriggerCooldown;
 } GameRuntime;
 
 static GameRuntime g_game = {0};
@@ -146,6 +149,14 @@ static int CountRomeBelieversMet(const Player *player) {
     return count;
 }
 
+static void StartHouseArrest(Player *player, World *world) {
+    player->romeCenturionMet = true;
+    player->questStates[4] = QUEST_COMPLETED;
+    player->activeQuestId = 0;
+    ResetPlayerMovement(player, world->state.houseArrestPos);
+    player->gameComplete = true;
+}
+
 static void HandleRomeNpcInteraction(Player *player, World *world, const char *npcName) {
     if (TextIsEqual(npcName, "Roman Believer 1")) {
         if (!player->romeBelieversMet[0]) {
@@ -183,11 +194,20 @@ static void HandleRomeNpcInteraction(Player *player, World *world, const char *n
             return;
         }
 
-        player->romeCenturionMet = true;
-        player->questStates[4] = QUEST_COMPLETED;
-        player->activeQuestId = 0;
-        ResetPlayerMovement(player, world->state.houseArrestPos);
-        player->gameComplete = true;
+        StartHouseArrest(player, world);
+        ShowWorldMessage(player, "Centurion: 'You will remain under guard in Rome.'", 6.0f);
+        return;
+    }
+
+    if (TextIsEqual(npcName, "House Guard")) {
+        if (CountRomeBelieversMet(player) < 3) {
+            ShowWorldMessage(player, "Guard: 'Not yet. Speak with the believers who came to meet you first.'", 6.0f);
+            return;
+        }
+
+        StartHouseArrest(player, world);
+        ShowWorldMessage(player, "Guard: 'This is the house appointed for your confinement in Rome.'", 6.0f);
+        return;
     }
 }
 
@@ -501,18 +521,60 @@ static void HandlePortTravel(Player *player, World *world, ShipMinigame *shipMin
     StartShipMinigame(shipMinigame, world->state.nextWorldId, world->state.worldName, world->state.nextWorldName);
 }
 
+static Texture2D LoadSpriteTextureOrFallback(const char *path, Image fallbackImage) {
+    Texture2D texture = {0};
+
+    if (FileExists(path)) {
+        Image image = LoadImage(path);
+        if (image.data != NULL) {
+            texture = LoadTextureFromImage(image);
+            UnloadImage(image);
+        }
+    }
+
+    if (texture.id == 0) {
+        texture = LoadTextureFromImage(fallbackImage);
+    }
+
+    UnloadImage(fallbackImage);
+    return texture;
+}
+
 void LoadSprites() {
-    Image imgPaul = GenImageChecked(32, 64, 8, 8, BLUE, WHITE);
-    spriteDatabase[SPRITE_PAUL] = LoadTextureFromImage(imgPaul);
-    UnloadImage(imgPaul);
+    spriteDatabase[SPRITE_PAUL] = LoadSpriteTextureOrFallback(
+        "lite-assets/st_paul.png",
+        GenImageChecked(32, 64, 8, 8, BLUE, WHITE)
+    );
 
-    Image imgSadducee = GenImageChecked(32, 64, 8, 8, RED, BLACK);
-    spriteDatabase[SPRITE_SADDUCEE] = LoadTextureFromImage(imgSadducee);
-    UnloadImage(imgSadducee);
+    spriteDatabase[SPRITE_PHARISEE] = LoadSpriteTextureOrFallback(
+        "lite-assets/pharisee.png",
+        GenImageChecked(32, 64, 8, 8, RED, BLACK)
+    );
 
-    Image imgAnanias = GenImageChecked(32, 64, 8, 8, GREEN, WHITE);
-    spriteDatabase[SPRITE_ANANIAS] = LoadTextureFromImage(imgAnanias);
-    UnloadImage(imgAnanias);
+    spriteDatabase[SPRITE_ELDER] = LoadSpriteTextureOrFallback(
+        "lite-assets/elder.png",
+        GenImageChecked(32, 64, 8, 8, GREEN, WHITE)
+    );
+
+    spriteDatabase[SPRITE_ROMAN] = LoadSpriteTextureOrFallback(
+        "lite-assets/roman.png",
+        GenImageChecked(32, 64, 8, 8, MAROON, LIGHTGRAY)
+    );
+
+    spriteDatabase[SPRITE_ROMAN_CITIZEN] = LoadSpriteTextureOrFallback(
+        "lite-assets/roman_citizen.png",
+        GenImageChecked(32, 64, 8, 8, BROWN, BEIGE)
+    );
+
+    spriteDatabase[SPRITE_MALTA] = LoadSpriteTextureOrFallback(
+        "lite-assets/malta.png",
+        GenImageChecked(32, 64, 8, 8, DARKGREEN, GOLD)
+    );
+
+    rockTexture = LoadSpriteTextureOrFallback(
+        "lite-assets/rock.png",
+        GenImageChecked(64, 64, 8, 8, DARKGRAY, GRAY)
+    );
 
     Image imgLetter = GenImageColor(48, 48, BLANK);
     ImageDrawRectangle(&imgLetter, 8, 12, 32, 22, (Color){244, 232, 196, 255});
@@ -545,14 +607,6 @@ static void LoadShaderSettings(ShaderSettings *settings) {
     fscanf(f, "%f", &settings->ambient);
     fscanf(f, "%f", &settings->shadowBias);
     fclose(f);
-}
-
-static bool BrowserAliasAllowed(const GameRuntime *game) {
-    return SPPS_PLATFORM_WEB && !game->combat.active && !game->player.guardDialogueActive;
-}
-
-static bool IsActionTogglePressed(const GameRuntime *game, int functionKey, int browserAliasKey) {
-    return IsKeyPressed(functionKey) || (BrowserAliasAllowed(game) && IsKeyPressed(browserAliasKey));
 }
 
 static void EnterFirstPerson(GameRuntime *game) {
@@ -633,6 +687,13 @@ static void ShutdownGame(GameRuntime *game) {
 
 static void UpdateDrawFrame(void *arg) {
     GameRuntime *game = (GameRuntime *)arg;
+    float dt = GetFrameTime();
+    if (game->travelTriggerCooldown > 0.0f) {
+        game->travelTriggerCooldown -= dt;
+        if (game->travelTriggerCooldown < 0.0f) game->travelTriggerCooldown = 0.0f;
+    }
+    bool travelTriggered = (game->travelTriggerCooldown <= 0.0f) &&
+        (IsKeyPressed(KEY_T) || SppsConsumeWebTravelRequest());
 
     if (game->shipMinigame.completed) {
         LoadWorld(&game->world, game->shipMinigame.destinationWorld);
@@ -672,9 +733,9 @@ static void UpdateDrawFrame(void *arg) {
     if (game->shipMinigame.active) {
         UpdateShipMinigame(&game->shipMinigame);
     } else {
-        if (IsActionTogglePressed(game, KEY_F1, KEY_ONE)) EnterFirstPerson(game);
+        if (IsKeyPressed(KEY_F1)) EnterFirstPerson(game);
 
-        if (IsActionTogglePressed(game, KEY_F2, KEY_TWO)) {
+        if (IsKeyPressed(KEY_F2)) {
             if (game->shadowPipelineReady) {
                 game->shadersEnabled = !game->shadersEnabled;
             } else if (SPPS_PLATFORM_WEB) {
@@ -682,9 +743,9 @@ static void UpdateDrawFrame(void *arg) {
             }
         }
 
-        if (IsActionTogglePressed(game, KEY_F3, KEY_THREE)) ExitFirstPerson(game);
+        if (IsKeyPressed(KEY_F3)) ExitFirstPerson(game);
 
-        if (IsActionTogglePressed(game, KEY_F5, KEY_FIVE)) {
+        if (IsKeyPressed(KEY_F5)) {
             game->settings.showDebugUI = !game->settings.showDebugUI;
             if (game->settings.showDebugUI) EnableCursor();
         }
@@ -733,7 +794,8 @@ static void UpdateDrawFrame(void *arg) {
                 } else if (TextIsEqual(npcName, "Roman Believer 1") ||
                            TextIsEqual(npcName, "Roman Believer 2") ||
                            TextIsEqual(npcName, "Roman Believer 3") ||
-                           TextIsEqual(npcName, "Centurion")) {
+                           TextIsEqual(npcName, "Centurion") ||
+                           TextIsEqual(npcName, "House Guard")) {
                     HandleRomeNpcInteraction(&game->player, &game->world, npcName);
                 } else if (!TextIsEqual(npcName, "Guard")) {
                     ShowWorldMessage(&game->player, TextFormat("%s pauses as you approach.", npcName), 3.0f);
@@ -779,7 +841,9 @@ static void UpdateDrawFrame(void *arg) {
             UpdateGuardDialogue(&game->player, &game->world);
 
             int portIdx = GetPortAt(&game->world, game->player.position);
-            if (portIdx != -1 && IsKeyPressed(KEY_T) && !game->player.guardDialogueActive) {
+            if (portIdx != -1 && travelTriggered && !game->player.guardDialogueActive) {
+                game->travelTriggerCooldown = 0.25f;
+                SppsClearWebTravelRequest();
                 if (game->world.state.worldId == WORLD_MALTA && !IsMaltaSnakeResolved(&game->world)) {
                     ShowWorldMessage(&game->player, "Captain: 'We must wait for the winter storms to pass.'", 4.0f);
                 } else {
@@ -795,8 +859,6 @@ static void UpdateDrawFrame(void *arg) {
                 }
                 UpdateWorld(&game->world, &game->player);
 
-                if (!game->player.guardDialogueActive && IsKeyPressed(KEY_C)) TryCraftTent(&game->player);
-                if (!game->player.guardDialogueActive && IsKeyPressed(KEY_I)) game->player.showInventory = !game->player.showInventory;
                 if (!game->player.guardDialogueActive && IsKeyPressed(KEY_M)) game->player.showMap = !game->player.showMap;
             }
         }
@@ -898,8 +960,6 @@ static void UpdateDrawFrame(void *arg) {
         }
     EndMode3D();
 
-    DrawInventory(&game->player);
-    DrawSkills(&game->player);
     DrawHUD(&game->player, &game->world, game->isFirstPerson);
     DrawGuardDialogue(&game->player, &game->world);
 
@@ -907,7 +967,7 @@ static void UpdateDrawFrame(void *arg) {
 
     DrawText("Point & Click to move across the Mediterranean", 10, GetScreenHeight() - (SPPS_PLATFORM_WEB ? 48 : 45), 15, WHITE);
     if (SPPS_PLATFORM_WEB) {
-        DrawText("Browser: F1/F2/F3/F5 also map to 1/2/3/5. Shift still boosts movement and repair.", 10, GetScreenHeight() - 28, 15, Fade(RAYWHITE, 0.88f));
+        DrawText("Browser: click the canvas first. Use F1 and F3 directly.", 10, GetScreenHeight() - 28, 15, Fade(RAYWHITE, 0.88f));
     }
     DrawFPS(GetScreenWidth() - 92, GetScreenHeight() - 28);
     DrawShaderDebugUI(&game->settings);

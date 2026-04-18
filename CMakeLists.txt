@@ -91,12 +91,20 @@ if(EMSCRIPTEN)
     target_link_options(main PRIVATE
         "SHELL:-sALLOW_MEMORY_GROWTH=1"
         "SHELL:-sEXPORTED_RUNTIME_METHODS=[requestFullscreen]"
-        "SHELL:-sEXPORTED_FUNCTIONS=['_main','_SPPS_WebSetKeyState','_SPPS_WebPulseKey','_SPPS_WebResetInputs']"
+        "SHELL:-sEXPORTED_FUNCTIONS=['_main','_SPPS_WebSetKeyState','_SPPS_WebPulseKey','_SPPS_WebResetInputs','_SPPS_WebRequestTravel']"
         "SHELL:-sUSE_GLFW=3"
         "SHELL:-sFORCE_FILESYSTEM=1"
         "SHELL:-sMIN_WEBGL_VERSION=2"
         "SHELL:-sMAX_WEBGL_VERSION=2"
         "SHELL:--shell-file ${CMAKE_SOURCE_DIR}/web/shell.html"
+        "SHELL:--preload-file ${CMAKE_SOURCE_DIR}/lite-assets/st_paul.png@/lite-assets/st_paul.png"
+        "SHELL:--preload-file ${CMAKE_SOURCE_DIR}/lite-assets/pharisee.png@/lite-assets/pharisee.png"
+        "SHELL:--preload-file ${CMAKE_SOURCE_DIR}/lite-assets/elder.png@/lite-assets/elder.png"
+        "SHELL:--preload-file ${CMAKE_SOURCE_DIR}/lite-assets/roman.png@/lite-assets/roman.png"
+        "SHELL:--preload-file ${CMAKE_SOURCE_DIR}/lite-assets/roman_citizen.png@/lite-assets/roman_citizen.png"
+        "SHELL:--preload-file ${CMAKE_SOURCE_DIR}/lite-assets/malta.png@/lite-assets/malta.png"
+        "SHELL:--preload-file ${CMAKE_SOURCE_DIR}/lite-assets/sailor.png@/lite-assets/sailor.png"
+        "SHELL:--preload-file ${CMAKE_SOURCE_DIR}/lite-assets/rock.png@/lite-assets/rock.png"
     )
     if(NOT SPPS_WEB_LITE)
         target_link_options(main PRIVATE

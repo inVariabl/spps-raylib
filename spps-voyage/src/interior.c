@@ -165,7 +165,7 @@ void RenderInteriorToTexture(InteriorState* s, CrewMember crew[], int crewCount)
         ClearBackground((Color){40, 25, 10, 255});
         BeginMode3D(s->camera);
             DrawInteriorRoom();
-            DrawCrew(crew, crewCount);
+            DrawCrew(crew, crewCount, s->camera);
         EndMode3D();
     EndTextureMode();
 }
@@ -193,7 +193,7 @@ void DrawInteriorHUD(const InteriorState* s,
         Rectangle destFull = { 0, 0, (float)WIDTH, (float)HEIGHT };
         DrawTexturePro(s->renderTex.texture, srcFull, destFull, (Vector2){0,0}, 0.0f, WHITE);
 
-        // ---- Ocean mini-window (top-right, same spot as interior mini-window on deck) ----
+        // ---- Ocean mini-window (top-right) ----
         int mx = WIDTH  - MINI_W - 10;
         int my = 10;
         DrawRectangle(mx - 2, my - 2, MINI_W + 4, MINI_H + 4, BLACK);
